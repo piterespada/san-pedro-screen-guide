@@ -6,7 +6,7 @@ const TIMEOUT = 8000;
 const METRO = "https://www.metrocinemas.hn";
 const MEGAMALL = 509;
 
-export type Partial = { title: string; poster?: string; synopsis?: string; runtime?: number; showtimes: Movie["showtimes"] };
+export type Partial = { title: string; poster?: string | undefined; synopsis?: string | undefined; runtime?: number | undefined; showtimes: Movie["showtimes"] };
 
 export const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Tegucigalpa" });
 const get = (url: string) => fetch(url, { headers: UA, signal: AbortSignal.timeout(TIMEOUT) }).then((r) => {
