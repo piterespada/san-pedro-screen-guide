@@ -42,6 +42,13 @@ function Index() {
         <div>
           <h1 className="text-4xl font-black tracking-tight text-primary">CARTELERA SPS</h1>
           <p className="text-sm text-muted-foreground">Hoy en San Pedro Sula · actualizado {new Date(data.fetchedAt).toLocaleTimeString("es-HN", { timeZone: "America/Tegucigalpa" })}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {data.status.map((s) => (
+              <span key={s.cinema} className={`rounded-full px-2 py-0.5 ${s.ok ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                {CINEMAS.find((c) => c.id === s.cinema)?.name}: {s.ok ? `en vivo (${s.count})` : "datos de prueba"}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={f.cinema} onChange={(cinema) => setF({ ...f, cinema })} options={[["all", "Todos los cines"], ...CINEMAS.map((c) => [c.id, c.name] as [typeof c.id, string])]} />
