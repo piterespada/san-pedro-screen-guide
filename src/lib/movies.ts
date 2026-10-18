@@ -8,7 +8,7 @@ export const CINEMAS = [
 export type CinemaId = (typeof CINEMAS)[number]["id"];
 export type Format = "2D" | "3D" | "VIP";
 export type Audio = "SUB" | "DOB";
-export type Showtime = { cinema: CinemaId; format: Format; audio: Audio; times: string[] };
+export type Showtime = { cinema: CinemaId; format: Format; audio: Audio; times: string[]; demo?: boolean };
 export type Movie = {
   id: string; title: string; poster: string; synopsis: string; director: string;
   cast: string[]; rating: number; runtime: number; showtimes: Showtime[];

@@ -42,6 +42,13 @@ function Index() {
         <div>
           <h1 className="text-4xl font-black tracking-tight text-primary">CARTELERA SPS</h1>
           <p className="text-sm text-muted-foreground">Hoy en San Pedro Sula · actualizado {new Date(data.fetchedAt).toLocaleTimeString("es-HN", { timeZone: "America/Tegucigalpa" })}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {data.status.map((s) => (
+              <span key={s.cinema} className={`rounded-full px-2 py-0.5 ${s.ok ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                {CINEMAS.find((c) => c.id === s.cinema)?.name}: {s.ok ? `en vivo (${s.count})` : "datos de prueba"}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={f.cinema} onChange={(cinema) => setF({ ...f, cinema })} options={[["all", "Todos los cines"], ...CINEMAS.map((c) => [c.id, c.name] as [typeof c.id, string])]} />
@@ -55,7 +62,7 @@ function Index() {
             <button key={m.id} onClick={() => setSel(m)} className="group text-left">
               <img src={m.poster} alt={m.title} className="aspect-[2/3] w-full rounded-md object-cover transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
               <p className="mt-2 truncate text-sm font-medium">{m.title}</p>
-              <p className="text-xs text-muted-foreground">★ {m.rating} · {m.runtime} min</p>
+              <p className="text-xs text-muted-foreground">{m.runtime ? `${m.runtime} min` : ""} · {new Set(m.showtimes.map((s) => s.cinema)).size} cine(s)</p>
             </button>
           ))}
         </div>

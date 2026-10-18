@@ -13,7 +13,7 @@ export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => vo
               <h2 className="text-2xl font-bold">{movie.title}</h2>
               <button onClick={onClose} className="text-2xl text-muted-foreground hover:text-foreground">×</button>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">★ {movie.rating} TMDb · {movie.runtime} min</p>
+            <p className="mt-1 text-sm text-muted-foreground">{movie.rating ? `★ ${movie.rating} TMDb · ` : ""}{movie.runtime ? `${movie.runtime} min` : ""}</p>
             <div className="mt-4 flex gap-2">
               {(["info", "times"] as const).map((t) => (
                 <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1 text-sm ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
@@ -26,9 +26,9 @@ export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => vo
         <div className="px-5 pb-5">
           {tab === "info" ? (
             <div className="space-y-3 text-sm">
-              <p>{movie.synopsis}</p>
-              <p><span className="text-muted-foreground">Director:</span> {movie.director}</p>
-              <p><span className="text-muted-foreground">Reparto:</span> {movie.cast.join(", ")}</p>
+              <p>{movie.synopsis || "Sinopsis no disponible."}</p>
+              {movie.director && <p><span className="text-muted-foreground">Director:</span> {movie.director}</p>}
+              {movie.cast.length > 0 && <p><span className="text-muted-foreground">Reparto:</span> {movie.cast.join(", ")}</p>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -40,6 +40,7 @@ export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => vo
                     {st.length === 0 ? <p className="text-sm text-muted-foreground">No disponible hoy</p> : st.map((s, i) => (
                       <div key={i} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                         <span className="rounded bg-primary/20 px-2 text-primary">{s.format} · {s.audio === "SUB" ? "Subtitulada" : "Doblada"}</span>
+                        {s.demo && <span className="text-xs text-muted-foreground">(datos de prueba)</span>}
                         {s.times.map((t) => <span key={t} className="rounded border px-2">{t}</span>)}
                       </div>
                     ))}
