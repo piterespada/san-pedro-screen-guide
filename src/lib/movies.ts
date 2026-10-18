@@ -12,6 +12,7 @@ export type Showtime = { cinema: CinemaId; format: Format; audio: Audio; times: 
 export type Movie = {
   id: string; title: string; poster: string; synopsis: string; director: string;
   cast: string[]; rating: number; runtime: number; showtimes: Showtime[];
+  year?: string | undefined; certification?: string | undefined;
 };
 
 const p = (q: string) => `https://placehold.co/400x600/1a1a1a/e50914?text=${encodeURIComponent(q)}`;

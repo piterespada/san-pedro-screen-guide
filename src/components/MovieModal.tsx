@@ -13,7 +13,7 @@ export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => vo
               <h2 className="text-2xl font-bold">{movie.title}</h2>
               <button onClick={onClose} className="text-2xl text-muted-foreground hover:text-foreground">×</button>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{movie.rating ? `★ ${movie.rating} TMDb · ` : ""}{movie.runtime ? `${movie.runtime} min` : ""}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{[movie.rating ? `★ ${movie.rating} TMDb` : "", movie.year, movie.runtime ? `${movie.runtime} min` : "", movie.certification].filter(Boolean).join(" · ")}</p>
             <div className="mt-4 flex gap-2">
               {(["info", "times"] as const).map((t) => (
                 <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1 text-sm ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
