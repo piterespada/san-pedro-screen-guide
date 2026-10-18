@@ -11,7 +11,7 @@ export const getShowtimes = createServerFn({ method: "GET" }).handler(async () =
   const status: CinemaStatus[] = results.map(({ id, r }) => ({ cinema: id, ok: !!r?.length, count: r?.length ?? 0 }));
   const live = results.flatMap(({ r }) => r ?? []);
   const failed = new Set(status.filter((s) => !s.ok).map((s) => s.cinema));
-  const fallback = MOCK_MOVIES.map((m) => ({ title: m.title, poster: m.poster, synopsis: m.synopsis, runtime: m.runtime, showtimes: m.showtimes.filter((s) => failed.has(s.cinema)) }))
+  const fallback = MOCK_MOVIES.map((m) => ({ title: m.title, poster: m.poster, synopsis: m.synopsis, runtime: m.runtime, showtimes: m.showtimes.filter((s) => failed.has(s.cinema)).map((s) => ({ ...s, demo: true })) }))
     .filter((p) => p.showtimes.length);
   const movies = live.length ? merge([...live, ...fallback]) : MOCK_MOVIES;
   return { movies, status, live: live.length > 0, fetchedAt: new Date().toISOString() };

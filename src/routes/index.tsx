@@ -55,7 +55,7 @@ function Index() {
             <button key={m.id} onClick={() => setSel(m)} className="group text-left">
               <img src={m.poster} alt={m.title} className="aspect-[2/3] w-full rounded-md object-cover transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
               <p className="mt-2 truncate text-sm font-medium">{m.title}</p>
-              <p className="text-xs text-muted-foreground">★ {m.rating} · {m.runtime} min</p>
+              <p className="text-xs text-muted-foreground">{m.runtime ? `${m.runtime} min` : ""} · {new Set(m.showtimes.map((s) => s.cinema)).size} cine(s)</p>
             </button>
           ))}
         </div>
