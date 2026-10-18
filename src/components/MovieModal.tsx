@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CINEMAS, type Movie } from "@/lib/movies";
+import { Badge } from "./Badge";
 
 export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => void }) {
   const [tab, setTab] = useState<"info" | "times">("info");
@@ -39,7 +40,7 @@ export function MovieModal({ movie, onClose }: { movie: Movie; onClose: () => vo
                     <p className="font-semibold">{c.name}</p>
                     {st.length === 0 ? <p className="text-sm text-muted-foreground">No disponible hoy</p> : st.map((s, i) => (
                       <div key={i} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                        <span className="rounded bg-primary/20 px-2 text-primary">{s.format} · {s.audio === "SUB" ? "Subtitulada" : "Doblada"}</span>
+                        <Badge kind={s.format} /><Badge kind={s.audio} />
                         {s.demo && <span className="text-xs text-muted-foreground">(datos de prueba)</span>}
                         {s.times.map((t) => <span key={t} className="rounded border px-2">{t}</span>)}
                       </div>
