@@ -32,7 +32,7 @@ async function metro(): Promise<Partial[]> {
   const cards = $(".v2-mcard").map((_, el) => ({
     id: $(el).attr("data-cod")!,
     title: $(el).find(".v2-mc-title").text().trim(),
-    poster: $(el).find("img.v2-mpbg").attr("src"),
+    poster: $(el).find("img.v2-mpbg").attr("src") ?? "",
   })).get().filter((c) => c.id && c.title);
   const date = today();
   const out = await Promise.all(cards.map(async (c) => {
@@ -59,7 +59,7 @@ async function cinepolis(url: string): Promise<Partial[]> {
       return { format: fmt(f), audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
     }).get();
     const runtime = Number(m.find(".movie-projection__inner--meta").text().match(/(\d+)\s*Min/i)?.[1]) || undefined;
-    return { title: m.find("h2").first().text().trim(), poster: m.find("img").attr("src"), runtime, showtimes: group("altara", rows) };
+    return { title: m.find("h2").first().text().trim(), poster: m.find("img").attr("src") ?? "", runtime, showtimes: group("altara", rows) };
   }).get().filter((p) => p.title && p.showtimes.length);
 }
 
