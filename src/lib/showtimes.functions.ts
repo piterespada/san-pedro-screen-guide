@@ -10,7 +10,7 @@ export const getShowtimes = createServerFn({ method: "GET" }).handler(async () =
       try {
         const res = await fetch(c.url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) });
         const $ = load(await res.text());
-        let scope = $("body");
+        let scope: ReturnType<typeof $> = $("body");
         if (c.id === "megamall") {
           const mm = $("*:contains('Megamall')").last().closest("section, div");
           if (mm.length) scope = mm;
