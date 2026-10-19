@@ -26,13 +26,14 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
     const cert = [ "HN", "MX", "US" ].map((c) => rd.find((r: any) => r.iso_3166_1 === c)?.release_dates?.find((x: any) => x.certification)?.certification).find(Boolean);
     return {
       ...m,
-      synopsis: d.overview || m.synopsis,
-      director: credits?.crew?.find((c: any) => c.job === "Director")?.name ?? m.director,
-      cast: credits?.cast?.slice(0, 5).map((c: any) => c.name) ?? m.cast,
+      // The cinemas' own data wins; TMDb only fills what they left empty.
+      synopsis: m.synopsis || d.overview || "",
+      director: m.director || credits?.crew?.find((c: any) => c.job === "Director")?.name || "",
+      cast: m.cast.length ? m.cast : (credits?.cast?.slice(0, 5).map((c: any) => c.name) ?? m.cast),
       rating: Math.round((d.vote_average ?? 0) * 10) / 10,
-      runtime: d.runtime || m.runtime,
+      runtime: m.runtime || d.runtime || 0,
       year: d.release_date?.slice(0, 4),
-      certification: cert,
+      certification: m.certification ?? cert,
       tmdbId: d.id,
       // Official cinema poster first; TMDb only when the cinema gave none (or a placeholder).
       poster: m.poster && !m.poster.includes("placehold.co") ? m.poster : d.poster_path ? IMG + d.poster_path : m.poster,
@@ -50,8 +51,12 @@ export async function enrich(movies: Movie[], key: string | undefined) {
   const out: Movie[] = [];
   for (const m of found) {
     const dup = m.tmdbId ? out.find((x) => x.tmdbId === m.tmdbId) : undefined;
-    if (dup) dup.showtimes.push(...m.showtimes);
-    else out.push(m);
+    if (dup) {
+      dup.showtimes.push(...m.showtimes);
+      dup.presale = !!dup.presale && !!m.presale;
+      dup.trailer ||= m.trailer;
+      if (m.opening && (!dup.opening || m.opening < dup.opening)) dup.opening = m.opening;
+    } else out.push(m);
   }
   return out;
 }

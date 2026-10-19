@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { CINEMAS, MOCK_MOVIES, type CinemaId } from "./movies";
+import { CINEMAS, type CinemaId } from "./movies";
 
 export type CinemaStatus = { cinema: CinemaId; ok: boolean; count: number };
 
@@ -7,13 +7,13 @@ const LIMIT = 8000;
 const withTimeout = <T,>(p: Promise<T>) =>
   Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), LIMIT))]);
 
-// Scrapes all 4 cinemas in parallel (8s cap each). Failed cinemas get demo showtimes
-// (the client swaps in its last saved board when available). If nothing live comes back,
-// TMDb "now playing" fills the grid; mock data is the last resort.
+// Queries all 4 cinemas in parallel (8s cap each). A cinema that fails or returns nothing is
+// reported as unavailable and left out: nothing is ever invented to take its place.
+// TMDb (optional) only completes posters and missing details of movies the cinemas really list.
 export const getShowtimes = createServerFn({ method: "GET" }).handler(async () => {
   const key = process.env["TMDB_API_KEY"];
   const { SCRAPERS, merge } = await import("./scrapers.server");
-  const { enrich, nowPlaying } = await import("./tmdb.server");
+  const { enrich } = await import("./tmdb.server");
   const results = await Promise.all(CINEMAS.map((c) =>
     withTimeout(SCRAPERS[c.id]()).then((r) => ({ id: c.id, r }), (e) => {
       console.error(`scrape ${c.id} failed:`, e instanceof Error ? e.message : e);
@@ -21,11 +21,6 @@ export const getShowtimes = createServerFn({ method: "GET" }).handler(async () =
     })));
   const status: CinemaStatus[] = results.map(({ id, r }) => ({ cinema: id, ok: !!r?.length, count: r?.length ?? 0 }));
   const live = results.flatMap(({ r }) => r ?? []);
-  const failed = new Set(status.filter((s) => !s.ok).map((s) => s.cinema));
-  const fallback = MOCK_MOVIES.map((m) => ({ title: m.title, poster: m.poster, synopsis: m.synopsis, runtime: m.runtime, showtimes: m.showtimes.filter((s) => failed.has(s.cinema)).map((s) => ({ ...s, demo: true })) }))
-    .filter((p) => p.showtimes.length);
-  let movies = live.length ? await enrich(merge([...live, ...fallback]), key) : [];
-  if (!live.length) movies = (await nowPlaying(key).catch(() => [])) ;
-  if (!movies.length) movies = MOCK_MOVIES;
+  const movies = live.length ? await enrich(merge(live), key) : [];
   return { movies, status, fetchedAt: new Date().toISOString() };
 });

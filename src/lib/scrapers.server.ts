@@ -1,31 +1,21 @@
 import { load } from "cheerio/slim";
+import { parseBillboard } from "./cinemark";
 import { sameMovie, titleKey } from "./titles";
-import { CINEMAS, type Audio, type CinemaId, type Format, type Movie } from "./movies";
+import { CINEMAS, group, todayHN, type Audio, type CinemaId, type Format, type Listing, type Movie } from "./movies";
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126 Safari/537.36" };
 const TIMEOUT = 7000;
 const METRO = "https://www.metrocinemas.hn";
 const MEGAMALL = 509;
 
-export type Partial = { title: string; poster?: string | undefined; synopsis?: string | undefined; runtime?: number | undefined; showtimes: Movie["showtimes"] };
+export type Partial = Listing;
 
-export const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Tegucigalpa" });
-const get = (url: string) => fetch(url, { headers: UA, signal: AbortSignal.timeout(TIMEOUT) }).then((r) => {
+export const today = todayHN;
+const get = (url: string, headers: Record<string, string> = {}) => fetch(url, { headers: { ...UA, ...headers }, signal: AbortSignal.timeout(TIMEOUT) }).then((r) => {
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r;
 });
 const fmt = (s: string): Format => (/vip/i.test(s) ? "VIP" : /3d/i.test(s) ? "3D" : "2D");
-
-/** Group raw (format, audio, time) rows into Showtime entries. */
-function group(cinema: CinemaId, rows: { format: Format; audio: Audio; time: string }[]) {
-  const map = new Map<string, Movie["showtimes"][number]>();
-  for (const r of rows) {
-    const k = r.format + r.audio;
-    if (!map.has(k)) map.set(k, { cinema, format: r.format, audio: r.audio, times: [] });
-    map.get(k)!.times.push(r.time);
-  }
-  return [...map.values()].map((s) => ({ ...s, times: [...new Set(s.times)].sort() }));
-}
 
 /** Metrocinema: list page has every location; per-movie JSON endpoint filtered to Megamall (509). */
 async function metro(): Promise<Partial[]> {
@@ -40,7 +30,7 @@ async function metro(): Promise<Partial[]> {
     try {
       const fx: { tecnologiaNombre: string; funciones: { horaComienzoOriginal: string; subtitulada: boolean }[] }[] =
         await (await get(`${METRO}/Peliculas/GetCacheFuncionesComplejoPeliculaFecha?complejoId=${MEGAMALL}&codPelicula=${c.id}&fecha=${date}`)).json();
-      const rows = fx.flatMap((t) => t.funciones.map((f) => ({ format: fmt(t.tecnologiaNombre), audio: (f.subtitulada ? "SUB" : "DOB") as Audio, time: f.horaComienzoOriginal })));
+      const rows = fx.flatMap((t) => t.funciones.map((f) => ({ date, formats: [fmt(t.tecnologiaNombre)], audio: (f.subtitulada ? "SUB" : "DOB") as Audio, time: f.horaComienzoOriginal })));
       if (!rows.length) return null;
       const d = await get(`${METRO}/Peliculas/GetDetallePelicula?codPelicula=${c.id}`).then((r) => r.json()).catch(() => ({}));
       return { title: c.title, poster: c.poster, synopsis: d.sinopsis, runtime: d.duracion, showtimes: group("megamall", rows) };
@@ -55,24 +45,27 @@ async function cinepolis(url: string): Promise<Partial[]> {
   const date = today();
   return $(".movie-projection").map((_, el) => {
     const m = $(el);
-    const rows = m.find("input[data-show-time]").filter((_, i) => $(i).attr("data-show-date") === date).map((_, i) => {
+    // Every date the page lists from today onwards (not just today).
+    const rows = m.find("input[data-show-time]").map((_, i) => {
+      const d = $(i).attr("data-show-date") ?? "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < date) return null;
       const f = $(i).attr("data-format") ?? "";
-      return { format: fmt(f), audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
-    }).get();
+      return { date: d, formats: [fmt(f)], audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
+    }).get().filter((r): r is NonNullable<typeof r> => !!r);
     const runtime = Number(m.find(".movie-projection__inner--meta").text().match(/(\d+)\s*Min/i)?.[1]) || undefined;
     return { title: m.find("h2").first().text().trim(), poster: m.find("img").attr("src") ?? "", runtime, showtimes: group("altara", rows) };
   }).get().filter((p) => p.title && p.showtimes.length);
 }
 
-/** Cinemark sits behind Cloudflare bot protection (HTTP 403); we try, and the caller falls back. */
-async function cinemark(url: string): Promise<Partial[]> {
-  await get(url);
-  return [];
+/** Cinemark: official billboard API (all upcoming dates). Any failure throws, so the cinema is hidden. */
+async function cinemark(cinema: CinemaId, url: string): Promise<Partial[]> {
+  const json = await (await get(url, { Accept: "application/json" })).json();
+  return parseBillboard(json, cinema, today());
 }
 
 export const SCRAPERS: Record<CinemaId, () => Promise<Partial[]>> = {
-  citymall: () => cinemark(CINEMAS[0].url),
-  galerias: () => cinemark(CINEMAS[1].url),
+  citymall: () => cinemark("citymall", CINEMAS[0].url),
+  galerias: () => cinemark("galerias", CINEMAS[1].url),
   altara: () => cinepolis(CINEMAS[2].url),
   megamall: metro,
 };
@@ -82,13 +75,20 @@ export function merge(parts: Partial[]): Movie[] {
   const out: (Movie & { names: string[] })[] = [];
   for (const p of parts) {
     let m = out.find((x) => x.names.some((n) => sameMovie(n, p.title)));
-    if (!m) out.push((m = { id: titleKey(p.title), title: p.title, names: [], poster: "", synopsis: "", director: "", cast: [], rating: 0, runtime: 0, showtimes: [] }));
+    if (!m) out.push((m = { id: titleKey(p.title), title: p.title, names: [], poster: "", synopsis: "", director: "", cast: [], rating: 0, runtime: 0, showtimes: [], presale: true }));
     m.names.push(p.title);
     if (p.title.length > m.title.length) m.title = p.title;
-    // Cinema posters win; the first real one found is kept.
+    // Cinema posters win; the first real one found is kept (TMDb fills in later when none exists).
     if (p.poster && (!m.poster || m.poster.includes("placehold.co"))) m.poster = p.poster;
     m.synopsis ||= p.synopsis ?? "";
     m.runtime ||= p.runtime ?? 0;
+    if (!m.director) m.director = p.director ?? "";
+    if (!m.cast.length) m.cast = p.cast ?? [];
+    m.certification ||= p.certification;
+    m.trailer ||= p.trailer;
+    if (p.opening && (!m.opening || p.opening < m.opening)) m.opening = p.opening;
+    // A movie only counts as pre-sale when every cinema lists it that way.
+    m.presale = !!m.presale && !!p.presale;
     m.showtimes.push(...p.showtimes);
   }
   return out.map(({ names: _n, ...m }) => m).sort((a, b) => a.title.localeCompare(b.title));
