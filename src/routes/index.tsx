@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readCache, reconcile, type Board } from "@/lib/cache";
 import { CINEMAS, filterMovies, type Filters, type Movie } from "@/lib/movies";
 import { getShowtimes } from "@/lib/showtimes.functions";
 import { MovieModal } from "@/components/MovieModal";
@@ -31,7 +32,11 @@ function Select<T extends string>({ value, onChange, options }: { value: T; onCh
 }
 
 function Index() {
-  const { data, isFetching, refetch } = useQuery(showtimesQuery);
+  const { data: fresh, isFetching, isError, refetch } = useQuery(showtimesQuery);
+  const [data, setData] = useState<Board | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+  useEffect(() => { const c = readCache(); if (c) { setData((d) => d ?? c); setFromCache(true); } }, []);
+  useEffect(() => { if (fresh) { setData(reconcile(fresh, readCache())); setFromCache(false); } }, [fresh]);
   const [q, setQ] = useState("");
   const [f, setF] = useState<Filters>({ cinema: "all", format: "all", audio: "all" });
   const [sel, setSel] = useState<Movie | null>(null);
@@ -44,11 +49,20 @@ function Index() {
           <h1 className="text-4xl font-black tracking-tight text-primary">CARTELERA SPS</h1>
           <p className="text-sm text-muted-foreground">Hoy en San Pedro Sula · {data ? "actualizado " : "cargando horarios de los 4 cines…"}{data && new Date(data.fetchedAt).toLocaleTimeString("es-HN", { timeZone: "America/Tegucigalpa" })}</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {data?.status.map((s) => (
-              <span key={s.cinema} className={`rounded-full px-2 py-0.5 ${s.ok ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
-                {CINEMAS.find((c) => c.id === s.cinema)?.name}: {s.ok ? `en vivo (${s.count})` : "datos de prueba"}
-              </span>
-            ))}
+            {data?.status.map((s) => {
+              const name = CINEMAS.find((c) => c.id === s.cinema)?.name;
+              return (
+                <span key={s.cinema} className={`rounded-full px-2 py-0.5 ${s.ok ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                  {s.ok ? `${name}: en vivo (${s.count})` : s.stale ? `${name}: mostrando última cartelera guardada` : `Servidor de ${name} no disponible temporalmente`}
+                </span>
+              );
+            })}
+          </div>
+          {(isError || (fromCache && !isFetching)) && (
+            <p className="mt-2 text-xs text-muted-foreground">⚠ No se pudo actualizar. Mostrando última cartelera guardada.</p>
+          )}
+          {fromCache && isFetching && <p className="mt-2 text-xs text-muted-foreground">Mostrando última cartelera guardada mientras se actualiza…</p>}
+          <div className="hidden">
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
