@@ -7,7 +7,7 @@ import { getShowtimes } from "@/lib/showtimes.functions";
 import { MovieModal } from "@/components/MovieModal";
 import { Badge } from "@/components/Badge";
 
-const showtimesQuery = queryOptions({ queryKey: ["showtimes"], queryFn: () => getShowtimes(), staleTime: 1000 * 60 * 60 });
+const showtimesQuery = queryOptions({ queryKey: ["showtimes"], queryFn: () => getShowtimes(), staleTime: 1000 * 60 * 60, retry: 1 });
 
 export const Route = createFileRoute("/")({
   head: () => ({
