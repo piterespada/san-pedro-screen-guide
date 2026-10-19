@@ -2,7 +2,7 @@ import { load } from "cheerio/slim";
 import { CINEMAS, type Audio, type CinemaId, type Format, type Movie } from "./movies";
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126 Safari/537.36" };
-const TIMEOUT = 8000;
+const TIMEOUT = 7000;
 const METRO = "https://www.metrocinemas.hn";
 const MEGAMALL = 509;
 

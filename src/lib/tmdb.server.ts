@@ -44,3 +44,14 @@ export async function enrich(movies: Movie[], key: string | undefined) {
   if (!key) return movies;
   return Promise.all(movies.map((m) => lookup(m, key)));
 }
+
+/** Fallback when no cinema responds: TMDb "now playing" in Honduras, without showtimes. */
+export async function nowPlaying(key: string | undefined): Promise<Movie[]> {
+  if (!key) return [];
+  const r = await req(`/movie/now_playing?region=HN`, key);
+  return (r?.results ?? []).slice(0, 18).map((d: any) => ({
+    id: `tmdb-${d.id}`, title: d.title, synopsis: d.overview ?? "", director: "", cast: [],
+    rating: Math.round((d.vote_average ?? 0) * 10) / 10, runtime: 0, year: d.release_date?.slice(0, 4),
+    poster: d.poster_path ? IMG + d.poster_path : "", showtimes: [],
+  }));
+}

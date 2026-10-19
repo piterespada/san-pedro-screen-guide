@@ -39,5 +39,6 @@ export function matches(s: Showtime, f: Filters) {
 }
 
 export function filterMovies(movies: Movie[], f: Filters) {
-  return movies.filter((m) => m.showtimes.some((s) => matches(s, f)));
+  const noFilter = f.cinema === "all" && f.format === "all" && f.audio === "all";
+  return movies.filter((m) => (m.showtimes.length ? m.showtimes.some((s) => matches(s, f)) : noFilter));
 }
