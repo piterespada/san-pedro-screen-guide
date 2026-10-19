@@ -33,7 +33,10 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
       runtime: d.runtime || m.runtime,
       year: d.release_date?.slice(0, 4),
       certification: cert,
-      poster: d.poster_path ? IMG + d.poster_path : m.poster,
+      tmdbId: d.id,
+      // Official cinema poster first; TMDb only when the cinema gave none (or a placeholder).
+      poster: m.poster && !m.poster.includes("placehold.co") ? m.poster : d.poster_path ? IMG + d.poster_path : m.poster,
+      posterAlt: d.poster_path ? IMG + d.poster_path : undefined,
     };
   } catch {
     return m;
@@ -42,7 +45,15 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
 
 export async function enrich(movies: Movie[], key: string | undefined) {
   if (!key) return movies;
-  return Promise.all(movies.map((m) => lookup(m, key)));
+  const found = await Promise.all(movies.map((m) => lookup(m, key)));
+  // Second pass: titles TMDb resolved to the same film become one card.
+  const out: Movie[] = [];
+  for (const m of found) {
+    const dup = m.tmdbId ? out.find((x) => x.tmdbId === m.tmdbId) : undefined;
+    if (dup) dup.showtimes.push(...m.showtimes);
+    else out.push(m);
+  }
+  return out;
 }
 
 /** Fallback when no cinema responds: TMDb "now playing" in Honduras, without showtimes. */
