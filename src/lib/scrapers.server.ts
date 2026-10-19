@@ -1,4 +1,5 @@
 import { load } from "cheerio/slim";
+import { sameMovie, titleKey } from "./titles";
 import { CINEMAS, type Audio, type CinemaId, type Format, type Movie } from "./movies";
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126 Safari/537.36" };
@@ -76,19 +77,19 @@ export const SCRAPERS: Record<CinemaId, () => Promise<Partial[]>> = {
   megamall: metro,
 };
 
-const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-/** Merge per-cinema results into one Movie per title. */
+/** Merge per-cinema results into one Movie per title, grouping near-identical titles. */
 export function merge(parts: Partial[]): Movie[] {
-  const map = new Map<string, Movie>();
+  const out: (Movie & { names: string[] })[] = [];
   for (const p of parts) {
-    const k = norm(p.title);
-    const m = map.get(k) ?? { id: k, title: p.title, poster: "", synopsis: "", director: "", cast: [], rating: 0, runtime: 0, showtimes: [] };
-    m.poster ||= p.poster ?? "";
+    let m = out.find((x) => x.names.some((n) => sameMovie(n, p.title)));
+    if (!m) out.push((m = { id: titleKey(p.title), title: p.title, names: [], poster: "", synopsis: "", director: "", cast: [], rating: 0, runtime: 0, showtimes: [] }));
+    m.names.push(p.title);
+    if (p.title.length > m.title.length) m.title = p.title;
+    // Cinema posters win; the first real one found is kept.
+    if (p.poster && (!m.poster || m.poster.includes("placehold.co"))) m.poster = p.poster;
     m.synopsis ||= p.synopsis ?? "";
     m.runtime ||= p.runtime ?? 0;
     m.showtimes.push(...p.showtimes);
-    map.set(k, m);
   }
-  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+  return out.map(({ names: _n, ...m }) => m).sort((a, b) => a.title.localeCompare(b.title));
 }
