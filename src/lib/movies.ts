@@ -7,10 +7,15 @@ export const CINEMAS = [
 
 export type CinemaId = (typeof CINEMAS)[number]["id"];
 /** Screen technology. A single session can carry several (e.g. 2D + XD + D-BOX). */
-export type Format = "2D" | "3D" | "XD" | "D-BOX" | "IV" | "VIP";
+export type Format = "2D" | "3D" | "XD" | "D-BOX" | "IV" | "PREMIER" | "VIP";
 export type Audio = "SUB" | "DOB";
-/** Sessions of one cinema on one date sharing the same formats and audio. `date` is YYYY-MM-DD. */
-export type Showtime = { cinema: CinemaId; date: string; formats: Format[]; audio?: Audio | undefined; times: string[] };
+/** Seat type, only when the cinema reports enough to tell. */
+export type Seating = "D-BOX" | "Tradicional";
+/**
+ * Sessions of one cinema on one date sharing the same formats, audio and seating.
+ * Format, audio and seating belong to the session itself, not to the movie. `date` is YYYY-MM-DD.
+ */
+export type Showtime = { cinema: CinemaId; date: string; formats: Format[]; audio?: Audio | undefined; seating?: Seating | undefined; times: string[] };
 export type Movie = {
   id: string; title: string; poster: string; synopsis: string; director: string;
   cast: string[]; rating: number; runtime: number; showtimes: Showtime[];
@@ -21,23 +26,25 @@ export type Movie = {
   trailer?: string | undefined;
   /** True when every listing is a pre-sale / special event (not yet in regular release). */
   presale?: boolean | undefined;
+  /** Official release date (YYYY-MM-DD), when the cinema reports it. */
+  opening?: string | undefined;
 };
 
 /** What a single cinema reports about one movie, before the cinemas are merged. */
 export type Listing = {
   title: string; poster?: string | undefined; synopsis?: string | undefined; runtime?: number | undefined;
   director?: string | undefined; cast?: string[] | undefined; certification?: string | undefined;
-  trailer?: string | undefined; presale?: boolean | undefined; showtimes: Showtime[];
+  trailer?: string | undefined; presale?: boolean | undefined; opening?: string | undefined; showtimes: Showtime[];
 };
 
-export type SessionRow = { date: string; formats: Format[]; audio?: Audio | undefined; time: string };
+export type SessionRow = { date: string; formats: Format[]; audio?: Audio | undefined; seating?: Seating | undefined; time: string };
 
-/** Group raw sessions into Showtime entries per (date, formats, audio). */
+/** Group raw sessions into Showtime entries per (date, formats, audio, seating). */
 export function group(cinema: CinemaId, rows: SessionRow[]): Showtime[] {
   const map = new Map<string, Showtime>();
   for (const r of rows) {
-    const k = `${r.date}|${r.formats.join("+")}|${r.audio ?? ""}`;
-    if (!map.has(k)) map.set(k, { cinema, date: r.date, formats: r.formats, audio: r.audio, times: [] });
+    const k = `${r.date}|${r.formats.join("+")}|${r.audio ?? ""}|${r.seating ?? ""}`;
+    if (!map.has(k)) map.set(k, { cinema, date: r.date, formats: r.formats, audio: r.audio, seating: r.seating, times: [] });
     map.get(k)!.times.push(r.time);
   }
   return [...map.values()]
@@ -54,21 +61,34 @@ export function availableDates(movies: Movie[], today: string): string[] {
   return [...dates].sort();
 }
 
+const dateOf = (date: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString("es-HN", { ...opts, timeZone: "UTC" });
+
+/** "mié, 21 oct". */
+export const shortDate = (date: string) => dateOf(date, { weekday: "short", day: "numeric", month: "short" });
+/** "miércoles, 21 de octubre". */
+export const longDate = (date: string) => dateOf(date, { weekday: "long", day: "numeric", month: "long" });
+
 /** "Hoy", "Mañana", then "mié, 21 oct". */
 export function dayLabel(date: string, today: string) {
   const diff = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   if (diff === 0) return "Hoy";
   if (diff === 1) return "Mañana";
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  return shortDate(date);
 }
 
-export type Filters = { cinema: CinemaId | "all"; format: Format | "all"; audio: Audio | "all" };
+/** First and last date (YYYY-MM-DD) among showtimes, or null when there are none. */
+export function dateSpan(showtimes: Showtime[]): [string, string] | null {
+  const dates = showtimes.map((s) => s.date).sort();
+  return dates.length ? [dates[0]!, dates[dates.length - 1]!] : null;
+}
+
+/** The only global filter left: format, audio and seating live on each showtime. */
+export type Filters = { cinema: CinemaId | "all" };
 /** Which slice of the board is on screen: regular listings of one day, or all pre-sales. */
 export type View = { presale: boolean; date?: string | undefined };
 
-export function matches(s: Showtime, f: Filters) {
-  return (f.cinema === "all" || s.cinema === f.cinema) && (f.format === "all" || s.formats.includes(f.format)) && (f.audio === "all" || s.audio === f.audio);
-}
+export const matches = (s: Showtime, f: Filters) => f.cinema === "all" || s.cinema === f.cinema;
 
 /** Showtimes of a movie that pass the filters and belong to the current view. */
 export function visibleShowtimes(m: Movie, f: Filters, v: View) {

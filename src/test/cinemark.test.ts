@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseBillboard, parseVersion, youtubeUrl } from "@/lib/cinemark";
-import { availableDates, dayLabel, filterMovies, group, type Filters, type Movie } from "@/lib/movies";
+import { availableDates, dateSpan, dayLabel, filterMovies, group, type Filters, type Movie } from "@/lib/movies";
 
 const TODAY = "2026-10-19";
 
@@ -28,11 +28,14 @@ const billboard = [
 
 describe("parseVersion", () => {
   it("extracts technology and audio badges from the version title", () => {
-    expect(parseVersion("Street Fighter (2D SUB XD DBOX -HN)")).toEqual({ formats: ["2D", "XD", "D-BOX"], audio: "SUB" });
-    expect(parseVersion("Algo (3D DOB IV -HN)")).toEqual({ formats: ["3D", "IV"], audio: "DOB" });
+    expect(parseVersion("Street Fighter (2D SUB XD DBOX -HN)")).toEqual({ formats: ["2D", "XD", "D-BOX"], audio: "SUB", seating: "D-BOX" });
+    expect(parseVersion("Algo (3D DOB IV -HN)")).toEqual({ formats: ["3D", "IV"], audio: "DOB", seating: "Tradicional" });
+  });
+  it("recognizes Premier, whose seating is not described", () => {
+    expect(parseVersion("Cinta (2D SUB PREMIER -HN)")).toEqual({ formats: ["2D", "PREMIER"], audio: "SUB" });
   });
   it("only reads the trailing parenthesis, and guesses nothing", () => {
-    expect(parseVersion("XD Adventures (2D -HN)")).toEqual({ formats: ["2D"], audio: undefined });
+    expect(parseVersion("XD Adventures (2D -HN)")).toEqual({ formats: ["2D"], audio: undefined, seating: "Tradicional" });
   });
 });
 
@@ -64,6 +67,14 @@ describe("parseBillboard", () => {
     expect(dob).toMatchObject({ cinema: "citymall", date: "2026-10-19", formats: ["2D"], times: ["15:30", "18:00"] });
     expect(sf.showtimes.find((s) => s.audio === "SUB")!.formats).toEqual(["2D", "XD", "D-BOX"]);
   });
+  it("keeps format, audio and seating on each showtime", () => {
+    expect(sf.showtimes.find((s) => s.audio === "SUB")).toMatchObject({ seating: "D-BOX" });
+    expect(sf.showtimes.find((s) => s.audio === "DOB")).toMatchObject({ seating: "Tradicional" });
+  });
+  it("reads the release date", () => {
+    expect(sf.opening).toBe("2026-10-16");
+    expect(estreno.opening).toBe("2026-10-23");
+  });
   it("flags movies that open in the future as pre-sale, and regular ones as not", () => {
     expect(estreno.presale).toBe(true);
     expect(sf.presale).toBe(false);
@@ -86,7 +97,7 @@ describe("parseBillboard", () => {
 });
 
 describe("views", () => {
-  const f: Filters = { cinema: "all", format: "all", audio: "all" };
+  const f: Filters = { cinema: "all" };
   const movie = (id: string, presale: boolean, rows: { date: string; formats: ("2D" | "XD")[] }[]): Movie => ({
     id, title: id, poster: "", synopsis: "", director: "", cast: [], rating: 0, runtime: 0, presale,
     showtimes: rows.flatMap((r) => group("citymall", [{ ...r, audio: "SUB", time: "20:00" }])),
@@ -105,9 +116,13 @@ describe("views", () => {
     expect(filterMovies(movies, f, { presale: false, date: "2026-10-20" })).toEqual([]);
     expect(filterMovies(movies, f, { presale: true }).map((m) => m.id)).toEqual(["upcoming"]);
   });
-  it("filters by any of a session's formats", () => {
-    expect(filterMovies(movies, { ...f, format: "XD" }, { presale: false, date: "2026-10-21" })).toHaveLength(1);
-    expect(filterMovies(movies, { ...f, format: "XD" }, { presale: false, date: "2026-10-19" })).toHaveLength(0);
+  it("filters by cinema only", () => {
+    expect(filterMovies(movies, { cinema: "citymall" }, { presale: false, date: "2026-10-19" })).toHaveLength(1);
+    expect(filterMovies(movies, { cinema: "galerias" }, { presale: false, date: "2026-10-19" })).toHaveLength(0);
+  });
+  it("finds the first and last screening date", () => {
+    expect(dateSpan(movies[0]!.showtimes)).toEqual(["2026-10-19", "2026-10-21"]);
+    expect(dateSpan([])).toBe(null);
   });
   it("labels days", () => {
     expect(dayLabel("2026-10-19", TODAY)).toBe("Hoy");

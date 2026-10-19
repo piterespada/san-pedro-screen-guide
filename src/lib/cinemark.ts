@@ -1,4 +1,4 @@
-import { group, type Audio, type CinemaId, type Format, type Listing, type SessionRow } from "./movies";
+import { group, type Audio, type CinemaId, type Format, type Listing, type SessionRow, type Seating } from "./movies";
 import { titleKey } from "./titles";
 
 // Parser for Cinemark's official billboard API:
@@ -16,8 +16,10 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
  * Version titles embed the technology and audio: "Street Fighter (2D SUB XD DBOX -HN)".
  * Only the trailing parenthesis is read, so a movie called "XD" can't pollute the badges.
  * Audio is left undefined when the title says neither DOB nor SUB (nothing is guessed).
+ * Seating: D-BOX when the title says so; "Tradicional" when it names no special seating;
+ * unknown (undefined) for Premier, whose seats the title doesn't describe.
  */
-export function parseVersion(title: string): { formats: Format[]; audio: Audio | undefined } {
+export function parseVersion(title: string): { formats: Format[]; audio: Audio | undefined; seating: Seating | undefined } {
   const tag = title.match(/\(([^()]*)\)\s*$/)?.[1] ?? title;
   const has = (re: RegExp) => re.test(tag);
   const formats: Format[] = [];
@@ -26,8 +28,10 @@ export function parseVersion(title: string): { formats: Format[]; audio: Audio |
   if (has(/\bXD\b/i)) formats.push("XD");
   if (has(/\bD-?BOX\b/i)) formats.push("D-BOX");
   if (has(/\bIV\b/i)) formats.push("IV");
+  if (has(/\bPREMIERE?\b/i)) formats.push("PREMIER");
   const audio: Audio | undefined = has(/\b(DOB|DOBLADA)\b/i) ? "DOB" : has(/\b(SUB|SUBTITULADA)\b/i) ? "SUB" : undefined;
-  return { formats, audio };
+  const seating: Seating | undefined = formats.includes("D-BOX") ? "D-BOX" : formats.includes("PREMIER") ? undefined : "Tradicional";
+  return { formats, audio, seating };
 }
 
 /** Accepts a YouTube URL (watch, embed, youtu.be) or a bare 11-char video id; anything else is dropped. */
@@ -69,6 +73,7 @@ function metaOf(m: Json, title: string, today: string): Meta {
     cast: names("actor"),
     certification: str(m["rating"]) || undefined,
     trailer: youtubeUrl(str(m["trailer_url"])),
+    opening: /^\d{4}-\d{2}-\d{2}$/.test(opening) ? opening : undefined,
     presale: (/^\d{4}-\d{2}-\d{2}$/.test(opening) && opening > today) || PRESALE.test(title),
   };
 }
@@ -101,20 +106,21 @@ export function parseBillboard(json: unknown, cinema: CinemaId, today: string): 
         film.meta.director ||= meta.director;
         film.meta.certification ||= meta.certification;
         film.meta.trailer ||= meta.trailer;
+        film.meta.opening ||= meta.opening;
         if (!film.meta.cast?.length) film.meta.cast = meta.cast;
       }
 
       for (const v of arr(m["movie_versions"])) {
         const version = obj(v);
         if (!version) continue;
-        const { formats, audio } = parseVersion(str(version["title"]));
+        const { formats, audio, seating } = parseVersion(str(version["title"]));
         for (const s of arr(version["sessions"])) {
           const session = obj(s);
           if (!session) continue;
           const sessionDate = str(session["day"]).slice(0, 10) || str(session["showtime"]).slice(0, 10) || date;
           const time = str(session["hour"]).slice(0, 5) || str(session["showtime"]).slice(11, 16);
           if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) || sessionDate < today || !/^\d{2}:\d{2}$/.test(time)) continue;
-          film.rows.push({ date: sessionDate, formats, audio, time });
+          film.rows.push({ date: sessionDate, formats, audio, seating, time });
         }
       }
     }

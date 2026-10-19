@@ -55,6 +55,7 @@ export async function enrich(movies: Movie[], key: string | undefined) {
       dup.showtimes.push(...m.showtimes);
       dup.presale = !!dup.presale && !!m.presale;
       dup.trailer ||= m.trailer;
+      if (m.opening && (!dup.opening || m.opening < dup.opening)) dup.opening = m.opening;
     } else out.push(m);
   }
   return out;

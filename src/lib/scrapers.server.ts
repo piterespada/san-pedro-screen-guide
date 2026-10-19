@@ -45,10 +45,13 @@ async function cinepolis(url: string): Promise<Partial[]> {
   const date = today();
   return $(".movie-projection").map((_, el) => {
     const m = $(el);
-    const rows = m.find("input[data-show-time]").filter((_, i) => $(i).attr("data-show-date") === date).map((_, i) => {
+    // Every date the page lists from today onwards (not just today).
+    const rows = m.find("input[data-show-time]").map((_, i) => {
+      const d = $(i).attr("data-show-date") ?? "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < date) return null;
       const f = $(i).attr("data-format") ?? "";
-      return { date, formats: [fmt(f)], audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
-    }).get();
+      return { date: d, formats: [fmt(f)], audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
+    }).get().filter((r): r is NonNullable<typeof r> => !!r);
     const runtime = Number(m.find(".movie-projection__inner--meta").text().match(/(\d+)\s*Min/i)?.[1]) || undefined;
     return { title: m.find("h2").first().text().trim(), poster: m.find("img").attr("src") ?? "", runtime, showtimes: group("altara", rows) };
   }).get().filter((p) => p.title && p.showtimes.length);
@@ -83,6 +86,7 @@ export function merge(parts: Partial[]): Movie[] {
     if (!m.cast.length) m.cast = p.cast ?? [];
     m.certification ||= p.certification;
     m.trailer ||= p.trailer;
+    if (p.opening && (!m.opening || p.opening < m.opening)) m.opening = p.opening;
     // A movie only counts as pre-sale when every cinema lists it that way.
     m.presale = !!m.presale && !!p.presale;
     m.showtimes.push(...p.showtimes);

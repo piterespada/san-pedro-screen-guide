@@ -1,10 +1,10 @@
 const TONE: Record<string, string> = {
   "2D": "badge-2d", "3D": "badge-3d", VIP: "badge-vip", SUB: "badge-sub", DOB: "badge-dob",
-  XD: "badge-xd", "D-BOX": "badge-dbox", IV: "badge-iv",
+  XD: "badge-xd", "D-BOX": "badge-dbox", IV: "badge-iv", PREMIER: "badge-premier",
 };
 const LABEL: Record<string, string> = { SUB: "Sub", DOB: "Dob" };
 const TITLE: Record<string, string> = {
-  SUB: "Subtitulada", DOB: "Doblada", XD: "Extreme Digital", "D-BOX": "Asientos D-BOX", IV: "Infiniti Vision",
+  SUB: "Subtitulada", DOB: "Doblada", XD: "Extreme Digital", "D-BOX": "Asientos D-BOX", IV: "Infiniti Vision", PREMIER: "Sala Premier",
 };
 
 export function Badge({ kind }: { kind: string }) {

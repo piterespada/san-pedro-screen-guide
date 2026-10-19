@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { readCache, saveBoard, type Board } from "@/lib/cache";
-import { CINEMAS, availableDates, dayLabel, filterMovies, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
+import { CINEMAS, availableDates, dateSpan, dayLabel, filterMovies, shortDate, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
 import { getShowtimes } from "@/lib/showtimes.functions";
 import { MovieModal } from "@/components/MovieModal";
 import { Badge } from "@/components/Badge";
@@ -41,7 +41,7 @@ function Index() {
   useEffect(() => { const c = readCache(); if (c) { setData((d) => d ?? c); setFromCache(true); } }, []);
   useEffect(() => { if (fresh) { setData(saveBoard(fresh)); setFromCache(false); } }, [fresh]);
   const [q, setQ] = useState("");
-  const [f, setF] = useState<Filters>({ cinema: "all", format: "all", audio: "all" });
+  const [f, setF] = useState<Filters>({ cinema: "all" });
   const [sel, setSel] = useState<Movie | null>(null);
   const [tab, setTab] = useState<Tab>("cartelera");
   const [day, setDay] = useState<string | null>(null);
@@ -83,8 +83,6 @@ function Index() {
             {isFetching ? "Actualizando…" : "Actualizar cartelera"}
           </button>
           <Select value={f.cinema} onChange={(cinema) => setF({ ...f, cinema })} options={[["all", "Todos los cines"], ...CINEMAS.map((c) => [c.id, c.name] as [typeof c.id, string])]} />
-          <Select value={f.format} onChange={(format) => setF({ ...f, format })} options={[["all", "Formato"], ["2D", "2D"], ["3D", "3D"], ["XD", "XD"], ["D-BOX", "D-BOX"], ["IV", "Infiniti Vision"], ["VIP", "VIP"]]} />
-          <Select value={f.audio} onChange={(audio) => setF({ ...f, audio })} options={[["all", "Audio"], ["SUB", "Subtitulada"], ["DOB", "Doblada"]]} />
         </div>
       </header>
 
@@ -122,11 +120,18 @@ function Index() {
           {movies.map((m) => {
             const shown = visibleShowtimes(m, f, view);
             const badges = [...new Set(shown.flatMap((s) => [...s.formats, ...(s.audio ? [s.audio] : [])]))];
+            const span = m.presale ? dateSpan(shown) : null;
             return (
               <button key={m.id} onClick={() => setSel(m)} className="group text-left">
                 <Poster src={m.poster} title={m.title} className="transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
                 <p className="mt-2 truncate text-sm font-medium">{m.title}</p>
                 <p className="text-xs text-muted-foreground">{[m.rating ? `★ ${m.rating}` : "", m.year, `${new Set(shown.map((s) => s.cinema)).size} cine(s)`].filter(Boolean).join(" · ")}</p>
+                {m.presale && (
+                  <div className="mt-0.5 text-xs">
+                    {m.opening && <p className="font-medium text-primary">Estreno: {shortDate(m.opening)}</p>}
+                    {span && <p className="text-muted-foreground">Preventa: {span[0] === span[1] ? shortDate(span[0]) : `${shortDate(span[0])} – ${shortDate(span[1])}`}</p>}
+                  </div>
+                )}
                 <div className="mt-1 flex flex-wrap gap-1">
                   {badges.map((k) => <Badge key={k} kind={k} />)}
                 </div>
