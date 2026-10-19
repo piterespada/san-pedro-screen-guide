@@ -150,9 +150,15 @@
   --badge-vip: oklch(0.8 0.15 85);
   --badge-sub: oklch(0.65 0.18 300);
   --badge-dob: oklch(0.7 0.16 50);
+  --badge-xd: oklch(0.7 0.17 20);
+  --badge-dbox: oklch(0.72 0.14 190);
+  --badge-iv: oklch(0.7 0.17 330);
 }
 @utility badge-2d { background: color-mix(in oklab, var(--badge-2d) 22%, transparent); color: var(--badge-2d); }
 @utility badge-3d { background: color-mix(in oklab, var(--badge-3d) 22%, transparent); color: var(--badge-3d); }
 @utility badge-vip { background: color-mix(in oklab, var(--badge-vip) 22%, transparent); color: var(--badge-vip); }
 @utility badge-sub { background: color-mix(in oklab, var(--badge-sub) 22%, transparent); color: var(--badge-sub); }
 @utility badge-dob { background: color-mix(in oklab, var(--badge-dob) 22%, transparent); color: var(--badge-dob); }
+@utility badge-xd { background: color-mix(in oklab, var(--badge-xd) 22%, transparent); color: var(--badge-xd); }
+@utility badge-dbox { background: color-mix(in oklab, var(--badge-dbox) 22%, transparent); color: var(--badge-dbox); }
+@utility badge-iv { background: color-mix(in oklab, var(--badge-iv) 22%, transparent); color: var(--badge-iv); }

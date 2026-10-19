@@ -1,44 +1,80 @@
 export const CINEMAS = [
-  { id: "citymall", name: "Cinemark Citymall", url: "https://www.cinemarkca.com/honduras/cine?tag=774&cine=honduras_-_citymall_san_pedro_sula&no-reminder=true" },
-  { id: "galerias", name: "Cinemark Galerías", url: "https://www.cinemarkca.com/honduras/cine?tag=2200&cine=honduras_-_galerias_del_valle&no-reminder=true" },
+  { id: "citymall", name: "Cinemark Citymall", url: "https://api.cinemarkca.com/api/vista/data/billboard?cinema_id=774" },
+  { id: "galerias", name: "Cinemark Galerías", url: "https://api.cinemarkca.com/api/vista/data/billboard?cinema_id=2200" },
   { id: "altara", name: "Cinépolis Altara", url: "https://cinepolis.com.hn/cinema/cinepolis-altara/?cinema_selected=1" },
   { id: "megamall", name: "Metrocinema Megamall", url: "https://www.metrocinemas.hn/cartelera/cartelera" },
 ] as const;
 
 export type CinemaId = (typeof CINEMAS)[number]["id"];
-export type Format = "2D" | "3D" | "VIP";
+/** Screen technology. A single session can carry several (e.g. 2D + XD + D-BOX). */
+export type Format = "2D" | "3D" | "XD" | "D-BOX" | "IV" | "VIP";
 export type Audio = "SUB" | "DOB";
-export type Showtime = { cinema: CinemaId; format: Format; audio: Audio; times: string[]; demo?: boolean };
+/** Sessions of one cinema on one date sharing the same formats and audio. `date` is YYYY-MM-DD. */
+export type Showtime = { cinema: CinemaId; date: string; formats: Format[]; audio?: Audio | undefined; times: string[] };
 export type Movie = {
   id: string; title: string; poster: string; synopsis: string; director: string;
   cast: string[]; rating: number; runtime: number; showtimes: Showtime[];
-  year?: string | undefined; tmdbId?: number | undefined; posterAlt?: string | undefined; certification?: string | undefined;
+  year?: string | undefined; tmdbId?: number | undefined; posterAlt?: string | undefined;
+  /** Age classification given by the cinema (e.g. "+13", "A", "+18"). */
+  certification?: string | undefined;
+  /** YouTube link to the trailer. */
+  trailer?: string | undefined;
+  /** True when every listing is a pre-sale / special event (not yet in regular release). */
+  presale?: boolean | undefined;
 };
 
-const p = (q: string) => `https://placehold.co/400x600/1a1a1a/e50914?text=${encodeURIComponent(q)}`;
+/** What a single cinema reports about one movie, before the cinemas are merged. */
+export type Listing = {
+  title: string; poster?: string | undefined; synopsis?: string | undefined; runtime?: number | undefined;
+  director?: string | undefined; cast?: string[] | undefined; certification?: string | undefined;
+  trailer?: string | undefined; presale?: boolean | undefined; showtimes: Showtime[];
+};
 
-export const MOCK_MOVIES: Movie[] = [
-  { id: "m1", title: "Dune: Part Two", poster: p("Dune Part Two"), synopsis: "Paul Atreides unites with the Fremen while on a path of revenge against those who destroyed his family.", director: "Denis Villeneuve", cast: ["Timothée Chalamet", "Zendaya", "Rebecca Ferguson"], rating: 8.5, runtime: 166,
-    showtimes: [{ cinema: "citymall", format: "2D", audio: "SUB", times: ["14:00", "17:30", "21:00"] }, { cinema: "altara", format: "VIP", audio: "SUB", times: ["19:00"] }, { cinema: "megamall", format: "2D", audio: "DOB", times: ["15:10", "18:40"] }] },
-  { id: "m2", title: "Inside Out 2", poster: p("Inside Out 2"), synopsis: "Riley's mind headquarters is undergoing a sudden demolition to make room for new Emotions.", director: "Kelsey Mann", cast: ["Amy Poehler", "Maya Hawke", "Lewis Black"], rating: 7.7, runtime: 96,
-    showtimes: [{ cinema: "galerias", format: "3D", audio: "DOB", times: ["13:00", "15:20"] }, { cinema: "citymall", format: "2D", audio: "DOB", times: ["12:30", "16:00", "18:15"] }, { cinema: "altara", format: "2D", audio: "DOB", times: ["14:45"] }] },
-  { id: "m3", title: "Deadpool & Wolverine", poster: p("Deadpool & Wolverine"), synopsis: "Deadpool is recruited by the TVA and teams up with a reluctant Wolverine.", director: "Shawn Levy", cast: ["Ryan Reynolds", "Hugh Jackman", "Emma Corrin"], rating: 7.8, runtime: 128,
-    showtimes: [{ cinema: "megamall", format: "3D", audio: "SUB", times: ["20:00"] }, { cinema: "galerias", format: "VIP", audio: "SUB", times: ["18:30", "21:30"] }] },
-  { id: "m4", title: "Alien: Romulus", poster: p("Alien Romulus"), synopsis: "Young colonists scavenging a derelict space station come face to face with the most terrifying life form.", director: "Fede Álvarez", cast: ["Cailee Spaeny", "David Jonsson"], rating: 7.3, runtime: 119,
-    showtimes: [{ cinema: "altara", format: "2D", audio: "SUB", times: ["16:30", "22:00"] }, { cinema: "citymall", format: "2D", audio: "DOB", times: ["20:15"] }] },
-  { id: "m5", title: "Wicked", poster: p("Wicked"), synopsis: "Elphaba and Glinda forge an unlikely friendship in the Land of Oz.", director: "Jon M. Chu", cast: ["Cynthia Erivo", "Ariana Grande"], rating: 7.6, runtime: 160,
-    showtimes: [{ cinema: "galerias", format: "2D", audio: "SUB", times: ["15:00", "19:10"] }, { cinema: "megamall", format: "2D", audio: "DOB", times: ["14:20"] }, { cinema: "altara", format: "VIP", audio: "SUB", times: ["20:30"] }] },
-  { id: "m6", title: "Moana 2", poster: p("Moana 2"), synopsis: "Moana journeys to the far seas of Oceania after an unexpected call from her wayfinding ancestors.", director: "David Derrick Jr.", cast: ["Auliʻi Cravalho", "Dwayne Johnson"], rating: 7.0, runtime: 100,
-    showtimes: [{ cinema: "citymall", format: "3D", audio: "DOB", times: ["11:30", "13:45"] }, { cinema: "megamall", format: "2D", audio: "DOB", times: ["12:00", "16:30"] }] },
-];
+export type SessionRow = { date: string; formats: Format[]; audio?: Audio | undefined; time: string };
 
-export type Filters = { cinema: CinemaId | "all"; format: Format | "all"; audio: Audio | "all" };
-
-export function matches(s: Showtime, f: Filters) {
-  return (f.cinema === "all" || s.cinema === f.cinema) && (f.format === "all" || s.format === f.format) && (f.audio === "all" || s.audio === f.audio);
+/** Group raw sessions into Showtime entries per (date, formats, audio). */
+export function group(cinema: CinemaId, rows: SessionRow[]): Showtime[] {
+  const map = new Map<string, Showtime>();
+  for (const r of rows) {
+    const k = `${r.date}|${r.formats.join("+")}|${r.audio ?? ""}`;
+    if (!map.has(k)) map.set(k, { cinema, date: r.date, formats: r.formats, audio: r.audio, times: [] });
+    map.get(k)!.times.push(r.time);
+  }
+  return [...map.values()]
+    .map((s) => ({ ...s, times: [...new Set(s.times)].sort() }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function filterMovies(movies: Movie[], f: Filters) {
-  const noFilter = f.cinema === "all" && f.format === "all" && f.audio === "all";
-  return movies.filter((m) => (m.showtimes.length ? m.showtimes.some((s) => matches(s, f)) : noFilter));
+export const todayHN = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Tegucigalpa" });
+
+/** Sorted, unique dates (today onwards) on which at least one of the movies has a session. */
+export function availableDates(movies: Movie[], today: string): string[] {
+  const dates = new Set<string>();
+  for (const m of movies) for (const s of m.showtimes) if (s.date >= today) dates.add(s.date);
+  return [...dates].sort();
+}
+
+/** "Hoy", "Mañana", then "mié, 21 oct". */
+export function dayLabel(date: string, today: string) {
+  const diff = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+  if (diff === 0) return "Hoy";
+  if (diff === 1) return "Mañana";
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+export type Filters = { cinema: CinemaId | "all"; format: Format | "all"; audio: Audio | "all" };
+/** Which slice of the board is on screen: regular listings of one day, or all pre-sales. */
+export type View = { presale: boolean; date?: string | undefined };
+
+export function matches(s: Showtime, f: Filters) {
+  return (f.cinema === "all" || s.cinema === f.cinema) && (f.format === "all" || s.formats.includes(f.format)) && (f.audio === "all" || s.audio === f.audio);
+}
+
+/** Showtimes of a movie that pass the filters and belong to the current view. */
+export function visibleShowtimes(m: Movie, f: Filters, v: View) {
+  return m.showtimes.filter((s) => matches(s, f) && (!v.date || s.date === v.date));
+}
+
+export function filterMovies(movies: Movie[], f: Filters, v: View) {
+  return movies.filter((m) => !!m.presale === v.presale && visibleShowtimes(m, f, v).length > 0);
 }
