@@ -1,4 +1,5 @@
 import type { Movie } from "./movies";
+import { cleanTitle, sameMovie } from "./titles";
 
 const API = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p/w780";
@@ -12,7 +13,7 @@ function req(path: string, key: string, lang = "es-MX") {
 }
 
 /** Strip cinema noise ("4K", "PREVENTA", "RE:", subtitles after ":") for a better search. */
-const clean = (t: string) => t.replace(/^re:\s*/i, "").replace(/\b(4k|preventa|3d|2d|vip|reestreno)\b/gi, "").replace(/\s+/g, " ").trim();
+const clean = (t: string) => cleanTitle(t).replace(/\b(4k|preventa|3d|2d|vip)\b/gi, "").replace(/\s+/g, " ").trim();
 
 async function lookup(m: Movie, key: string): Promise<Movie> {
   try {
@@ -24,8 +25,12 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
     if (!d) return m;
     const rd = d.release_dates?.results ?? [];
     const cert = [ "HN", "MX", "US" ].map((c) => rd.find((r: any) => r.iso_3166_1 === c)?.release_dates?.find((x: any) => x.certification)?.certification).find(Boolean);
+    // Show TMDb's Spanish name, but only when it is clearly the same film as the cinema's title
+    // (matching its localized or original title), so a wrong search hit never renames a movie.
+    const named = (x: unknown) => typeof x === "string" && x.trim() !== "" && sameMovie(m.title, x);
     return {
       ...m,
+      title: named(d.title) || named(d.original_title) ? String(d.title || d.original_title).trim() : m.title,
       // The cinemas' own data wins; TMDb only fills what they left empty.
       synopsis: m.synopsis || d.overview || "",
       director: m.director || credits?.crew?.find((c: any) => c.job === "Director")?.name || "",
@@ -54,6 +59,7 @@ export async function enrich(movies: Movie[], key: string | undefined) {
     if (dup) {
       dup.showtimes.push(...m.showtimes);
       dup.presale = !!dup.presale && !!m.presale;
+      dup.rerun = !!dup.rerun || !!m.rerun;
       dup.trailer ||= m.trailer;
       if (m.opening && (!dup.opening || m.opening < dup.opening)) dup.opening = m.opening;
     } else out.push(m);

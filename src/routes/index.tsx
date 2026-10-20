@@ -133,6 +133,7 @@ function Index() {
                   </div>
                 )}
                 <div className="mt-1 flex flex-wrap gap-1">
+                  {m.rerun && <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">Reestreno</span>}
                   {badges.map((k) => <Badge key={k} kind={k} />)}
                 </div>
               </button>

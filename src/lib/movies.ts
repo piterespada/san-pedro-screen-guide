@@ -28,13 +28,15 @@ export type Movie = {
   presale?: boolean | undefined;
   /** Official release date (YYYY-MM-DD), when the cinema reports it. */
   opening?: string | undefined;
+  /** True when a cinema lists it as a re-release ("RE", "Reestreno"). */
+  rerun?: boolean | undefined;
 };
 
 /** What a single cinema reports about one movie, before the cinemas are merged. */
 export type Listing = {
   title: string; poster?: string | undefined; synopsis?: string | undefined; runtime?: number | undefined;
   director?: string | undefined; cast?: string[] | undefined; certification?: string | undefined;
-  trailer?: string | undefined; presale?: boolean | undefined; opening?: string | undefined; showtimes: Showtime[];
+  trailer?: string | undefined; presale?: boolean | undefined; opening?: string | undefined; rerun?: boolean | undefined; showtimes: Showtime[];
 };
 
 export type SessionRow = { date: string; formats: Format[]; audio?: Audio | undefined; seating?: Seating | undefined; time: string };

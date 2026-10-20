@@ -1,5 +1,5 @@
 import { group, type Audio, type CinemaId, type Format, type Listing, type SessionRow, type Seating } from "./movies";
-import { titleKey } from "./titles";
+import { isRerun, titleKey } from "./titles";
 
 // Parser for Cinemark's official billboard API:
 //   https://api.cinemarkca.com/api/vista/data/billboard?cinema_id=<id>
@@ -74,6 +74,7 @@ function metaOf(m: Json, title: string, today: string): Meta {
     certification: str(m["rating"]) || undefined,
     trailer: youtubeUrl(str(m["trailer_url"])),
     opening: /^\d{4}-\d{2}-\d{2}$/.test(opening) ? opening : undefined,
+    rerun: isRerun(title),
     presale: (/^\d{4}-\d{2}-\d{2}$/.test(opening) && opening > today) || PRESALE.test(title),
   };
 }
