@@ -3,6 +3,7 @@ import { CINEMAS, dateSpan, dayLabel, isPast, longDate, nowHN, shortDate, type M
 import { useNow } from "@/hooks/use-now";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { Badge } from "./Badge";
+import { CastCarousel } from "./CastCarousel";
 import { Poster } from "./Poster";
 
 const SEATING = { "D-BOX": "Butacas D-BOX", Tradicional: "Butacas tradicionales" } as const;
@@ -52,7 +53,8 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
             <div className="space-y-3 text-sm">
               <p>{movie.synopsis || "Sinopsis no disponible."}</p>
               {movie.director && <p><span className="text-muted-foreground">Director:</span> {movie.director}</p>}
-              {movie.cast.length > 0 && <p><span className="text-muted-foreground">Reparto:</span> {movie.cast.join(", ")}</p>}
+              {movie.topCast?.length ? <CastCarousel cast={movie.topCast} />
+                : movie.cast.length > 0 && <p><span className="text-muted-foreground">Reparto:</span> {movie.cast.join(", ")}</p>}
               {movie.trailer && (
                 <a href={movie.trailer} target="_blank" rel="noopener noreferrer" className="inline-block rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
                   ▶ Ver tráiler

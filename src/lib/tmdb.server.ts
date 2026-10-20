@@ -1,4 +1,5 @@
 import type { Movie } from "./movies";
+import { topCast } from "./cast";
 import { cleanTitle, sameMovie } from "./titles";
 
 const API = "https://api.themoviedb.org/3";
@@ -28,6 +29,7 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
     // Show TMDb's Spanish name, but only when it is clearly the same film as the cinema's title
     // (matching its localized or original title), so a wrong search hit never renames a movie.
     const named = (x: unknown) => typeof x === "string" && x.trim() !== "" && sameMovie(m.title, x);
+    const stars = topCast(credits);
     return {
       ...m,
       title: named(d.title) || named(d.original_title) ? String(d.title || d.original_title).trim() : m.title,
@@ -35,6 +37,8 @@ async function lookup(m: Movie, key: string): Promise<Movie> {
       synopsis: m.synopsis || d.overview || "",
       director: m.director || credits?.crew?.find((c: any) => c.job === "Director")?.name || "",
       cast: m.cast.length ? m.cast : (credits?.cast?.slice(0, 5).map((c: any) => c.name) ?? m.cast),
+      // Main cast with photo and character, from the same credits response (no extra request).
+      topCast: stars.length ? stars : undefined,
       rating: Math.round((d.vote_average ?? 0) * 10) / 10,
       runtime: m.runtime || d.runtime || 0,
       year: d.release_date?.slice(0, 4),
