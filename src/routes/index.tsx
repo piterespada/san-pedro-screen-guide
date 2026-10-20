@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { readCache, saveBoard, type Board } from "@/lib/cache";
-import { CINEMAS, availableDates, dateSpan, dayLabel, filterMovies, shortDate, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
+import { CINEMAS, availableDates, dayLabel, filterMovies, matches, presaleCalendar, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
 import { getShowtimes } from "@/lib/showtimes.functions";
 import { MovieModal } from "@/components/MovieModal";
-import { Badge } from "@/components/Badge";
-import { Poster } from "@/components/Poster";
+import { MovieCard } from "@/components/MovieCard";
+import { PresaleCalendar } from "@/components/PresaleCalendar";
 
 const showtimesQuery = queryOptions({ queryKey: ["showtimes"], queryFn: () => getShowtimes(), staleTime: 1000 * 60 * 60, retry: 1 });
 
@@ -42,7 +42,7 @@ function Index() {
   useEffect(() => { if (fresh) { setData(saveBoard(fresh)); setFromCache(false); } }, [fresh]);
   const [q, setQ] = useState("");
   const [f, setF] = useState<Filters>({ cinema: "all" });
-  const [sel, setSel] = useState<Movie | null>(null);
+  const [sel, setSel] = useState<{ movie: Movie; date: string | undefined } | null>(null);
   const [tab, setTab] = useState<Tab>("cartelera");
   const [day, setDay] = useState<string | null>(null);
 
@@ -53,6 +53,9 @@ function Index() {
   const view = { presale: tab === "preventas", date: tab === "cartelera" ? date : undefined };
   const movies = filterMovies(all, f, view).filter((m) => m.title.toLowerCase().includes(q.toLowerCase()));
   const presaleCount = all.filter((m) => m.presale).length;
+  // Pre-sale tab: calendar of days with screenings or openings (only real dates from the cinemas).
+  const presaleDays = tab === "preventas" ? presaleCalendar(movies, today, f) : null;
+  const nothingToShow = presaleDays ? presaleDays.size === 0 : movies.length === 0;
   const nobodyAnswered = !!data && data.status.length > 0 && data.status.every((s) => !s.ok);
 
   return (
@@ -109,39 +112,30 @@ function Index() {
             <div key={i} className="animate-pulse"><div className="aspect-[2/3] rounded-md bg-secondary" /><div className="mt-2 h-4 w-3/4 rounded bg-secondary" /></div>
           ))}
         </div>
-      ) : movies.length === 0 ? (
+      ) : nothingToShow ? (
         <p className="text-muted-foreground">
           {nobodyAnswered ? "Ningún cine respondió en este momento. Intenta actualizar en unos minutos."
             : tab === "preventas" && presaleCount === 0 ? "No hay preventas disponibles por ahora."
             : "No hay funciones con esos filtros."}
         </p>
+      ) : presaleDays ? (
+        <PresaleCalendar days={presaleDays} today={today} renderDay={(dayMovies, d) => (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            {dayMovies.map((m) => {
+              const mine = m.showtimes.filter((s) => matches(s, f));
+              const thatDay = mine.filter((s) => s.date === d);
+              return <MovieCard key={m.id} movie={m} shown={thatDay.length ? thatDay : mine} range={mine} onSelect={(movie) => setSel({ movie, date: d })} />;
+            })}
+          </div>
+        )} />
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {movies.map((m) => {
-            const shown = visibleShowtimes(m, f, view);
-            const badges = [...new Set(shown.flatMap((s) => [...s.formats, ...(s.audio ? [s.audio] : [])]))];
-            const span = m.presale ? dateSpan(shown) : null;
-            return (
-              <button key={m.id} onClick={() => setSel(m)} className="group text-left">
-                <Poster src={m.poster} title={m.title} className="transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
-                <p className="mt-2 truncate text-sm font-medium">{m.title}</p>
-                <p className="text-xs text-muted-foreground">{[m.rating ? `★ ${m.rating}` : "", m.year, `${new Set(shown.map((s) => s.cinema)).size} cine(s)`].filter(Boolean).join(" · ")}</p>
-                {m.presale && (
-                  <div className="mt-0.5 text-xs">
-                    {m.opening && <p className="font-medium text-primary">Estreno: {shortDate(m.opening)}</p>}
-                    {span && <p className="text-muted-foreground">Preventa: {span[0] === span[1] ? shortDate(span[0]) : `${shortDate(span[0])} – ${shortDate(span[1])}`}</p>}
-                  </div>
-                )}
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {m.rerun && <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">Reestreno</span>}
-                  {badges.map((k) => <Badge key={k} kind={k} />)}
-                </div>
-              </button>
-            );
-          })}
+          {movies.map((m) => (
+            <MovieCard key={m.id} movie={m} shown={visibleShowtimes(m, f, view)} onSelect={(movie) => setSel({ movie, date: view.date })} />
+          ))}
         </div>
       )}
-      {sel && <MovieModal movie={sel} date={view.date} onClose={() => setSel(null)} />}
+      {sel && <MovieModal movie={sel.movie} date={sel.date} onClose={() => setSel(null)} />}
     </div>
   );
 }

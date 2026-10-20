@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { CINEMAS, dateSpan, dayLabel, longDate, shortDate, todayHN, type Movie } from "@/lib/movies";
+import { CINEMAS, dateSpan, dayLabel, isPast, longDate, nowHN, shortDate, type Movie } from "@/lib/movies";
+import { useNow } from "@/hooks/use-now";
+import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { Badge } from "./Badge";
 import { Poster } from "./Poster";
 
 const SEATING = { "D-BOX": "Butacas D-BOX", Tradicional: "Butacas tradicionales" } as const;
 
 export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: string | undefined; onClose: () => void }) {
-  const today = todayHN();
+  useScrollLock(); // the page behind stays still; only the card below scrolls
+  const now = useNow();
+  const today = nowHN(now).date;
   const upcoming = movie.showtimes.filter((s) => s.date >= today);
   const dates = [...new Set(upcoming.map((s) => s.date))].sort();
   const span = dateSpan(upcoming);
@@ -16,8 +20,8 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
   const cinemas = CINEMAS.filter((c) => rows.some((s) => s.cinema === c.id));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl border bg-card text-card-foreground" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label={movie.title} className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-background/80 p-4 backdrop-blur" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-xl border bg-card text-card-foreground" onClick={(e) => e.stopPropagation()}>
         <div className="flex gap-4 p-5">
           <div className="hidden w-32 shrink-0 sm:block"><Poster src={movie.poster} title={movie.title} /></div>
           <div className="flex-1">
@@ -81,7 +85,15 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
                           {s.seating && <p className="mt-1 text-[11px] text-muted-foreground">{SEATING[s.seating]}</p>}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {s.times.map((t) => <span key={t} className="rounded border px-2 py-0.5 text-sm tabular-nums">{t}</span>)}
+                          {s.times.map((t) => {
+                            const past = isPast(s.date, t, now); // already started, by Honduras time
+                            return (
+                              <span key={t} title={past ? "Función ya transcurrida" : undefined} aria-label={past ? `${t}, función ya transcurrida` : undefined}
+                                className={`rounded border px-2 py-0.5 text-sm tabular-nums ${past ? "line-through opacity-40" : ""}`}>
+                                {t}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}

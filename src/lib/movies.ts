@@ -54,7 +54,22 @@ export function group(cinema: CinemaId, rows: SessionRow[]): Showtime[] {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export const todayHN = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Tegucigalpa" });
+const TZ = "America/Tegucigalpa";
+export const todayHN = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+
+/** Current date (YYYY-MM-DD) and time (HH:MM, 24h) in Honduras. */
+export function nowHN(now: Date = new Date()) {
+  return {
+    date: now.toLocaleDateString("en-CA", { timeZone: TZ }),
+    time: now.toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+  };
+}
+
+/** True when a session (date YYYY-MM-DD, time HH:MM) already started, by Honduras time. */
+export function isPast(date: string, time: string, now: Date = new Date()) {
+  const n = nowHN(now);
+  return date < n.date || (date === n.date && time < n.time);
+}
 
 /** Sorted, unique dates (today onwards) on which at least one of the movies has a session. */
 export function availableDates(movies: Movie[], today: string): string[] {
@@ -99,4 +114,51 @@ export function visibleShowtimes(m: Movie, f: Filters, v: View) {
 
 export function filterMovies(movies: Movie[], f: Filters, v: View) {
   return movies.filter((m) => !!m.presale === v.presale && visibleShowtimes(m, f, v).length > 0);
+}
+
+/**
+ * Pre-sale calendar: for every date from `today` on, the movies that have a pre-sale screening that
+ * day (passing the cinema filter) or that open that day. Dates come out in ascending order and
+ * each day's movies are sorted by title. Only real sessions and real opening dates are used.
+ */
+export function presaleCalendar(movies: Movie[], today: string, f: Filters): Map<string, Movie[]> {
+  const days = new Map<string, Movie[]>();
+  const add = (date: string, m: Movie) => {
+    if (date < today) return;
+    const list = days.get(date) ?? [];
+    if (!list.includes(m)) days.set(date, [...list, m]);
+  };
+  for (const m of movies) {
+    if (!m.presale) continue;
+    const mine = m.showtimes.filter((s) => matches(s, f));
+    if (!mine.length) continue;
+    for (const s of mine) add(s.date, m);
+    if (m.opening) add(m.opening, m);
+  }
+  return new Map([...days].sort(([a], [b]) => a.localeCompare(b)).map(([d, l]) => [d, [...l].sort((a, b) => a.title.localeCompare(b.title))]));
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Weeks (Sunday first) of a month as YYYY-MM-DD strings, with null for the blank cells around it. `month` is 1–12. */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const lead = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cells: (string | null)[] = [
+    ...Array<null>(lead).fill(null),
+    ...Array.from({ length }, (_, i) => `${year}-${pad(month)}-${pad(i + 1)}`),
+  ];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}
+
+/** "octubre de 2026" for a "YYYY-MM" key. */
+export const monthLabel = (ym: string) =>
+  new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("es-HN", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** Shifts a "YYYY-MM" key by whole months. */
+export function addMonths(ym: string, delta: number) {
+  const [y, m] = ym.split("-").map(Number) as [number, number];
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
 }
