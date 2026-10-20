@@ -62,6 +62,17 @@ export function group(cinema: CinemaId, rows: SessionRow[]): Showtime[] {
 const TZ = "America/Tegucigalpa";
 export const todayHN = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 
+/** Today plus five future days, inclusive, without depending on the browser's timezone. */
+export function scheduleDates(today: string): string[] {
+  const start = Date.parse(`${today}T00:00:00Z`);
+  return Array.from({ length: 6 }, (_, offset) => new Date(start + offset * 86_400_000).toISOString().slice(0, 10));
+}
+
+export function inScheduleRange(date: string, today: string): boolean {
+  const end = scheduleDates(today).at(-1);
+  return !!end && date >= today && date <= end;
+}
+
 /** Current date (YYYY-MM-DD) and time (HH:MM, 24h) in Honduras. */
 export function nowHN(now: Date = new Date()) {
   return {
