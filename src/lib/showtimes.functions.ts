@@ -12,7 +12,8 @@ const withTimeout = <T,>(p: Promise<T>) =>
 // TMDb (optional) only completes posters and missing details of movies the cinemas really list.
 export const getShowtimes = createServerFn({ method: "GET" }).handler(async () => {
   const key = process.env["TMDB_API_KEY"];
-  const { SCRAPERS, merge } = await import("./scrapers.server");
+  const { SCRAPERS } = await import("./scrapers.server");
+  const { merge } = await import("./merge");
   const { enrich } = await import("./tmdb.server");
   const results = await Promise.all(CINEMAS.map((c) =>
     withTimeout(SCRAPERS[c.id]()).then((r) => ({ id: c.id, r }), (e) => {

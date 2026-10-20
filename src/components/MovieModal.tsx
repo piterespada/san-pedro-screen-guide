@@ -26,6 +26,7 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
               <button onClick={onClose} className="text-2xl text-muted-foreground hover:text-foreground">×</button>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{[movie.rating ? `★ ${movie.rating} TMDb` : "", movie.year, movie.runtime ? `${movie.runtime} min` : "", movie.certification].filter(Boolean).join(" · ")}</p>
+            {movie.rerun && <span className="mr-2 mt-2 inline-block rounded bg-secondary px-2 py-0.5 text-xs font-bold uppercase">Reestreno</span>}
             {movie.presale && (
               <div className="mt-2 space-y-0.5 text-sm">
                 <span className="inline-block rounded bg-primary/20 px-2 py-0.5 text-xs font-bold uppercase text-primary">Preventa</span>
