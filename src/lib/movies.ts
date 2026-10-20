@@ -16,9 +16,14 @@ export type Seating = "D-BOX" | "Tradicional";
  * Format, audio and seating belong to the session itself, not to the movie. `date` is YYYY-MM-DD.
  */
 export type Showtime = { cinema: CinemaId; date: string; formats: Format[]; audio?: Audio | undefined; seating?: Seating | undefined; times: string[] };
+/** An actor from TMDb's credits: real name, the character they play, and a profile photo when TMDb has one. */
+export type CastMember = { name: string; character?: string | undefined; photo?: string | undefined };
+
 export type Movie = {
   id: string; title: string; poster: string; synopsis: string; director: string;
   cast: string[]; rating: number; runtime: number; showtimes: Showtime[];
+  /** Main cast with photos and characters, from TMDb (absent when TMDb has no match). */
+  topCast?: CastMember[] | undefined;
   year?: string | undefined; tmdbId?: number | undefined; posterAlt?: string | undefined;
   /** Age classification given by the cinema (e.g. "+13", "A", "+18"). */
   certification?: string | undefined;
