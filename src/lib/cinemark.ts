@@ -1,4 +1,4 @@
-import { group, type Audio, type CinemaId, type Format, type Listing, type SessionRow, type Seating } from "./movies";
+import { group, inScheduleRange, type Audio, type CinemaId, type Format, type Listing, type SessionRow, type Seating } from "./movies";
 import { isRerun, titleKey } from "./titles";
 
 // Parser for Cinemark's official billboard API:
@@ -121,6 +121,7 @@ export function parseBillboard(json: unknown, cinema: CinemaId, today: string): 
           const sessionDate = str(session["day"]).slice(0, 10) || str(session["showtime"]).slice(0, 10) || date;
           const time = str(session["hour"]).slice(0, 5) || str(session["showtime"]).slice(11, 16);
           if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) || sessionDate < today || !/^\d{2}:\d{2}$/.test(time)) continue;
+          if (!film.meta.presale && !inScheduleRange(sessionDate, today)) continue;
           film.rows.push({ date: sessionDate, formats, audio, seating, time });
         }
       }
