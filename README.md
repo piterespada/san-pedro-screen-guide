@@ -1,34 +1,54 @@
-# 🎬 SPS Movie Aggregator
+# 🎬 Cartelera San Pedro Sula
 
-Agregador de carteleras de cine en tiempo real para la ciudad de San Pedro Sula, Honduras. Diseñado para ofrecer una experiencia de usuario fluida y minimalista (estilo SIMKL), conectando de forma directa con las fuentes oficiales de los cines locales.
+[![Sitio Web Oficial](https://img.shields.io/badge/🌐_Web_App-cartelera--sps.lovable.app-blueviolet?style=for-the-badge)](https://cartelera-sps.lovable.app/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-## 🚀 Características Principales
+Un agregador de cine de alto rendimiento diseñado específicamente para **San Pedro Sula, Honduras**. Consolida en tiempo real la cartelera, preventas, formatos y horarios de las principales cadenas de cines de la ciudad en una sola interfaz fluida e intuitiva.
 
-- **Carteleras 100% Verificadas (Cero Mock Data):** Arquitectura de alta integridad que omite automáticamente cualquier sucursal o conector que falle, evitando datos falsos o de relleno en la interfaz.
-- **Multicines Soportados en San Pedro Sula:**
-  - **Cinemark** (CityMall / Galerías): Consumo directo de API/JSON oficial.
-  - **Cinépolis** (Altara): Extracción estructurada robusta con manejo de formatos y navegación por días.
-- **Interfaz Moderna y Organizada:**
-  - Pestañas dinámicas separando la cartelera regular, los horarios en filas horizontales y la sección exclusiva de **Preventas**.
-  - Badges visuales inteligentes para tipos de audio (**DOB** / **SUB**) y formatos de pantalla (**2D**, **3D**, **XD**, **D-BOX**, **MacroXE**, **Infiniti**).
+🔗 **Prueba la aplicación aquí:** [https://cartelera-sps.lovable.app/](https://cartelera-sps.lovable.app/)
 
-## 🛠️ Stack Tecnológico
+---
 
-- **Frontend:** React / Vite / Tailwind CSS / TypeScript
-- **UI Components:** Lucide Icons, Radix UI primitives.
-- **Gestión de Datos:** Fetch API, parsers personalizados de DOM para bypass y normalización de horarios.
+## ✨ Características Principales
 
-## 📌 Reglas del Proyecto
+* 🎯 **Cero Datos Falsos (Zero Mock Data):** Todos los cines, funciones y horarios se extraen en tiempo real de sus fuentes oficiales. Si una fuente falla, la sucursal se oculta automáticamente para garantizar integridad total de los datos.
+* 🎟️ **Enlaces Directos a Boletos:** Redirección inmediata a la pasarela oficial de compra de cada cine (`Cinemark`, `Cinépolis` y `Metrocinemas Megamall`).
+* 🎭 **Elenco e Información Visual (TMDB API):** Integración con la API oficial de *The Movie Database* para renderizar carruseles de reparto con fotografías de actores, sus nombres y personajes.
+* 📅 **Navegación de Preventas e Histórico:** Selector de fechas para consultar funciones hasta con 5 días de anticipación y estado visual de horarios para identificar funciones pasadas.
+* 📱 **UI/UX Minimalista:** Interfaz responsiva con diseño optimizado, bloqueo de scroll en modal de detalles y tarjetas visuales claras.
 
-Este proyecto opera bajo un estándar estricto de **cero datos falsos**. Si un proveedor de cine no responde con datos reales y verificados, la sucursal se oculta automáticamente para mantener la integridad de la información mostrada al usuario.
+---
 
-## Development
+## 🏛️ Cines Integrados (San Pedro Sula)
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+| Cadena | Método de Integración |
+| :--- | :--- |
+| **Cinemark** | JSON API Directa |
+| **Cinépolis** | Dynamic DOM Parsing |
+| **Metrocinemas** (Megamall) | Direct SSR HTML Scraping |
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+---
+
+## 🛠️ Tecnologías Utilizadas
+
+* **Frontend:** React, TypeScript, Tailwind CSS
+* **APIs Externas:** TMDB API (Metadatos y reparto)
+* **Hosting & Deployment:** Lovable Cloud
+
+---
+
+## 🤝 Cómo Contribuir
+
+¡Las contribuciones son bienvenidas! Si deseas proponer una mejora o corregir algún error:
+
+1. Realiza un **Fork** de este repositorio.
+2. Crea una rama para tu función (`git checkout -b feature/nueva-mejora`).
+3. Realiza tus cambios y haz **Commit** (`git commit -m 'Añade nueva funcionalidad'`).
+4. Haz **Push** a la rama (`git push origin feature/nueva-mejora`).
+5. Abre un **Pull Request** para revisión.
+
+---
+
+<p center="align">Desarrollado con ❤️ para los cinéfilos de San Pedro Sula 🇭🇳</p>
