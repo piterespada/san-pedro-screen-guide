@@ -46,19 +46,19 @@ export function metroRows(json: unknown, date: string): SessionRow[] {
   return json.flatMap((raw) => {
     const technology = object(raw);
     if (!technology) return [];
-    const branch = text(technology.nombreComplejo);
+    const branch = text(technology["nombreComplejo"]);
     if (branch && branch.toLowerCase() !== "megamall") throw new Error("Metrocinemas: wrong branch");
-    const name = text(technology.tecnologiaNombre);
+    const name = text(technology["tecnologiaNombre"]);
     const formats: Format[] = [];
     if (/\bVIP\b/i.test(name)) formats.push("VIP");
     if (/\b2D\b/i.test(name)) formats.push("2D");
     if (/\b3D\b/i.test(name)) formats.push("3D");
-    return array(technology.funciones).flatMap((rawSession) => {
+    return array(technology["funciones"]).flatMap((rawSession) => {
       const session = object(rawSession);
       if (!session) return [];
-      const time = text(session.horaComienzoOriginal).slice(0, 5);
+      const time = text(session["horaComienzoOriginal"]).slice(0, 5);
       if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return [];
-      const audio: Audio | undefined = session.subtitulada === true ? "SUB" : session.doblada === true ? "DOB" : undefined;
+      const audio: Audio | undefined = session["subtitulada"] === true ? "SUB" : session["doblada"] === true ? "DOB" : undefined;
       return [{ date, formats, audio, time }];
     });
   });
@@ -67,10 +67,10 @@ export function metroRows(json: unknown, date: string): SessionRow[] {
 export function metroListing(card: MetroCard, rows: SessionRow[], detail: unknown): Listing | null {
   if (!rows.length) return null;
   const d = object(detail) ?? {};
-  const release = text(d.estreno);
+  const release = text(d["estreno"]);
   const local = release.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   const opening = local ? `${local[3]}-${local[2]}-${local[1]}` : /^\d{4}-\d{2}-\d{2}/.test(release) ? release.slice(0, 10) : undefined;
   return { title: card.title, poster: card.poster, presale: card.presale, opening,
-    synopsis: text(d.sinopsis), runtime: Number(d.duracion) || undefined,
-    certification: text(d.clasificacion) || undefined, rerun: isRerun(card.title), showtimes: group("megamall", rows) };
+    synopsis: text(d["sinopsis"]), runtime: Number(d["duracion"]) || undefined,
+    certification: text(d["clasificacion"]) || undefined, rerun: isRerun(card.title), showtimes: group("megamall", rows) };
 }
