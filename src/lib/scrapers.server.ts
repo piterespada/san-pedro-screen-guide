@@ -1,12 +1,11 @@
 import { load } from "cheerio/slim";
 import { parseBillboard } from "./cinemark";
 import { isRerun } from "./titles";
-import { CINEMAS, group, todayHN, type Audio, type CinemaId, type Format, type Listing } from "./movies";
+import { CINEMAS, group, inScheduleRange, todayHN, type Audio, type CinemaId, type Format, type Listing } from "./movies";
+import { MEGAMALL, METRO, metroCards, metroListing, metroRows } from "./metro";
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126 Safari/537.36" };
 const TIMEOUT = 7000;
-const METRO = "https://www.metrocinemas.hn";
-const MEGAMALL = 509;
 
 export type Partial = Listing;
 
@@ -17,24 +16,18 @@ const get = (url: string, headers: Record<string, string> = {}) => fetch(url, { 
 });
 const fmt = (s: string): Format => (/vip/i.test(s) ? "VIP" : /3d/i.test(s) ? "3D" : "2D");
 
-/** Metrocinema: list page has every location; per-movie JSON endpoint filtered to Megamall (509). */
+/** Branch maps include regular listings and presales, including dates beyond the daily window. */
 async function metro(): Promise<Partial[]> {
-  const $ = load(await (await get(`${METRO}/cartelera/cartelera`)).text());
-  const cards = $(".v2-mcard").map((_, el) => ({
-    id: $(el).attr("data-cod")!,
-    title: $(el).find(".v2-mc-title").text().trim(),
-    poster: $(el).find("img.v2-mpbg").attr("src") ?? "",
-  })).get().filter((c) => c.id && c.title);
-  const date = today();
-  const out = await Promise.all(cards.map(async (c) => {
-    try {
-      const fx: { tecnologiaNombre: string; funciones: { horaComienzoOriginal: string; subtitulada: boolean }[] }[] =
-        await (await get(`${METRO}/Peliculas/GetCacheFuncionesComplejoPeliculaFecha?complejoId=${MEGAMALL}&codPelicula=${c.id}&fecha=${date}`)).json();
-      const rows = fx.flatMap((t) => t.funciones.map((f) => ({ date, formats: [fmt(t.tecnologiaNombre)], audio: (f.subtitulada ? "SUB" : "DOB") as Audio, time: f.horaComienzoOriginal })));
-      if (!rows.length) return null;
-      const d = await get(`${METRO}/Peliculas/GetDetallePelicula?codPelicula=${c.id}`).then((r) => r.json()).catch(() => ({}));
-      return { title: c.title, poster: c.poster, synopsis: d.sinopsis, runtime: d.duracion, rerun: isRerun(c.title), showtimes: group("megamall", rows) };
-    } catch { return null; }
+  const cards = metroCards(await (await get(`${METRO}/cartelera/cartelera`)).text(), today());
+  const out = await Promise.all(cards.map(async (card) => {
+    const [days, detail] = await Promise.all([
+      Promise.all(card.dates.map(async (date) => {
+        const response = await get(`${METRO}/Peliculas/GetCacheFuncionesComplejoPeliculaFecha?complejoId=${MEGAMALL}&codPelicula=${card.id}&fecha=${date}`);
+        return metroRows(await response.json(), date);
+      })),
+      get(`${METRO}/Peliculas/GetDetallePelicula?codPelicula=${card.id}`).then((r) => r.json()).catch(() => ({})),
+    ]);
+    return metroListing(card, days.flat(), detail);
   }));
   return out.filter((x): x is NonNullable<typeof x> => !!x);
 }
@@ -48,9 +41,11 @@ async function cinepolis(url: string): Promise<Partial[]> {
     // Every date the page lists from today onwards (not just today).
     const rows = m.find("input[data-show-time]").map((_, i) => {
       const d = $(i).attr("data-show-date") ?? "";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < date) return null;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !inScheduleRange(d, date)) return null;
       const f = $(i).attr("data-format") ?? "";
-      return { date: d, formats: [fmt(f)], audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time: $(i).attr("data-show-time")! };
+      const time = $(i).attr("data-show-time");
+      if (!time) return null;
+      return { date: d, formats: [fmt(f)], audio: (/sub/i.test(f) ? "SUB" : "DOB") as Audio, time };
     }).get().filter((r): r is NonNullable<typeof r> => !!r);
     const runtime = Number(m.find(".movie-projection__inner--meta").text().match(/(\d+)\s*Min/i)?.[1]) || undefined;
     const title = m.find("h2").first().text().trim();
