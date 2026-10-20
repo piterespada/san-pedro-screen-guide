@@ -13,8 +13,9 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
   useScrollLock(); // the page behind stays still; only the card below scrolls
   const now = useNow();
   const today = nowHN(now).date;
-  const upcoming = movie.showtimes.filter((s) => inScheduleRange(s.date, today));
-  const dates = scheduleDates(today);
+  // Daily navigation is bounded; pre-sales retain their real future screening dates.
+  const upcoming = movie.showtimes.filter((s) => movie.presale ? s.date >= today : inScheduleRange(s.date, today));
+  const dates = movie.presale ? [...new Set(upcoming.map((s) => s.date))].sort() : scheduleDates(today);
   const span = dateSpan(movie.showtimes.filter((s) => s.date >= today));
   const [tab, setTab] = useState<"info" | "times">("info");
   const [day, setDay] = useState<string | undefined>(date && dates.includes(date) ? date : dates[0]);
