@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { CINEMAS, dateSpan, dayLabel, isPast, longDate, nowHN, shortDate, type Movie } from "@/lib/movies";
+import { CINEMAS, dateSpan, dayLabel, inScheduleRange, isPast, longDate, nowHN, scheduleDates, shortDate, type Movie } from "@/lib/movies";
 import { useNow } from "@/hooks/use-now";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { Badge } from "./Badge";
 import { CastCarousel } from "./CastCarousel";
 import { Poster } from "./Poster";
+import { Button } from "./ui/button";
 
 const SEATING = { "D-BOX": "Butacas D-BOX", Tradicional: "Butacas tradicionales" } as const;
 
@@ -12,9 +13,9 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
   useScrollLock(); // the page behind stays still; only the card below scrolls
   const now = useNow();
   const today = nowHN(now).date;
-  const upcoming = movie.showtimes.filter((s) => s.date >= today);
-  const dates = [...new Set(upcoming.map((s) => s.date))].sort();
-  const span = dateSpan(upcoming);
+  const upcoming = movie.showtimes.filter((s) => inScheduleRange(s.date, today));
+  const dates = scheduleDates(today);
+  const span = dateSpan(movie.showtimes.filter((s) => s.date >= today));
   const [tab, setTab] = useState<"info" | "times">("info");
   const [day, setDay] = useState<string | undefined>(date && dates.includes(date) ? date : dates[0]);
   const rows = upcoming.filter((s) => s.date === day);
@@ -66,9 +67,9 @@ export function MovieModal({ movie, date, onClose }: { movie: Movie; date?: stri
               {dates.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {dates.map((d) => (
-                    <button key={d} onClick={() => setDay(d)} aria-pressed={d === day} className={`shrink-0 rounded-full px-3 py-1 text-xs capitalize ${d === day ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
+                    <Button variant="secondary" size="sm" key={d} onClick={() => setDay(d)} aria-pressed={d === day} className={`shrink-0 rounded-md px-3 py-1 text-xs capitalize ${d === day ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
                       {dayLabel(d, today)}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}

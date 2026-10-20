@@ -2,11 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { readCache, saveBoard, type Board } from "@/lib/cache";
-import { CINEMAS, availableDates, dayLabel, filterMovies, matches, presaleCalendar, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
+import { CINEMAS, scheduleDates, dayLabel, filterMovies, matches, presaleCalendar, todayHN, visibleShowtimes, type Filters, type Movie } from "@/lib/movies";
 import { getShowtimes } from "@/lib/showtimes.functions";
 import { MovieModal } from "@/components/MovieModal";
 import { MovieCard } from "@/components/MovieCard";
 import { PresaleCalendar } from "@/components/PresaleCalendar";
+import { Button } from "@/components/ui/button";
 
 const showtimesQuery = queryOptions({ queryKey: ["showtimes"], queryFn: () => getShowtimes(), staleTime: 1000 * 60 * 60, retry: 1 });
 
@@ -48,8 +49,8 @@ function Index() {
 
   const today = todayHN();
   const all = data?.movies ?? [];
-  const dates = availableDates(all.filter((m) => !m.presale), today);
-  const date = day && dates.includes(day) ? day : dates.includes(today) ? today : dates[0];
+  const dates = scheduleDates(today);
+  const date = day && dates.includes(day) ? day : today;
   const view = { presale: tab === "preventas", date: tab === "cartelera" ? date : undefined };
   const movies = filterMovies(all, f, view).filter((m) => m.title.toLowerCase().includes(q.toLowerCase()));
   const presaleCount = all.filter((m) => m.presale).length;
@@ -99,9 +100,9 @@ function Index() {
       {tab === "cartelera" && dates.length > 0 && (
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
           {dates.map((d) => (
-            <button key={d} onClick={() => setDay(d)} aria-pressed={d === date} className={`shrink-0 rounded-md border px-3 py-1.5 text-sm capitalize ${d === date ? "border-primary bg-primary/20 text-primary" : "bg-secondary"}`}>
+            <Button variant="secondary" key={d} onClick={() => setDay(d)} aria-pressed={d === date} className={`shrink-0 rounded-md border px-3 py-1.5 text-sm capitalize ${d === date ? "border-primary bg-primary/20 text-primary" : "bg-secondary"}`}>
               {dayLabel(d, today)}
-            </button>
+            </Button>
           ))}
         </div>
       )}
