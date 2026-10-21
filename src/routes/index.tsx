@@ -60,7 +60,7 @@ function Index() {
   const nobodyAnswered = !!data && data.status.length > 0 && data.status.every((s) => !s.ok);
 
   return (
-    <div className="min-h-screen px-6 py-8">
+    <div className="px-6 py-8">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-primary">CARTELERA SPS</h1>
