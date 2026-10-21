@@ -1,6 +1,7 @@
 import { dateSpan, shortDate, type Movie, type Showtime } from "@/lib/movies";
 import { Badge } from "./Badge";
 import { Poster } from "./Poster";
+import { RerunBadge } from "./RerunBadge";
 
 /**
  * Poster card used by both the regular listing and the pre-sale calendar.
@@ -14,7 +15,10 @@ export function MovieCard({ movie, shown, range, onSelect }: {
   const span = movie.presale ? dateSpan(range ?? shown) : null;
   return (
     <button onClick={() => onSelect(movie)} className="group text-left">
-      <Poster src={movie.poster} title={movie.title} className="transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
+      <div className="relative">
+        <Poster src={movie.poster} title={movie.title} className="transition group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary" />
+        {movie.rerun && <RerunBadge className="absolute left-1.5 top-1.5" />}
+      </div>
       <p className="mt-2 truncate text-sm font-medium">{movie.title}</p>
       <p className="text-xs text-muted-foreground">{[movie.rating ? `★ ${movie.rating}` : "", movie.year, `${new Set(shown.map((s) => s.cinema)).size} cine(s)`].filter(Boolean).join(" · ")}</p>
       {movie.presale && (
@@ -24,7 +28,6 @@ export function MovieCard({ movie, shown, range, onSelect }: {
         </div>
       )}
       <div className="mt-1 flex flex-wrap gap-1">
-        {movie.rerun && <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">Reestreno</span>}
         {badges.map((k) => <Badge key={k} kind={k} />)}
       </div>
     </button>
