@@ -101,32 +101,110 @@ export function searchTitle(raw: string) {
   return shouting(s) ? titleCase(s) : s;
 }
 
+const BARE_YEAR = /^(.*\S)\s+((?:19|20)\d{2})$/;
+/** Splits a trailing release year off a sanitized title: "Your Name 2016" -> Your Name + 2016. Years in the future stay part of the title ("Blade Runner 2049"). */
+const splitYear = (t: string): { base: string; year?: string } => {
+  const m = t.match(BARE_YEAR);
+  return m && Number(m[2]) <= new Date().getFullYear() + 1 ? { base: m[1]!, year: m[2]! } : { base: t };
+};
+
+/** The release year the cinema's title carries: "Cars (2006)" or "Your Name 2016". */
+export const titleYear = (raw: string): string | undefined =>
+  raw.match(YEAR_IN_PARENS)?.[1] ?? splitYear(searchTitle(raw)).year;
+
 export type SearchAttempt = {
   query: string;
-  /** Original release year, only when the cinema title carries one in parentheses ("Cars (2006)"). */
+  /** Sent to TMDb as primary_release_year when the cinema title carries a year. */
   year?: string | undefined;
   /** Fallback guess: the caller must confirm the TMDb hit (e.g. by runtime) before linking it. */
   loose: boolean;
 };
 
 /**
- * Ordered TMDb searches for a cinema title, stopping at the first that returns results:
- * 1. the exact sanitized title; 2. the same with the original year, if the title has one;
+ * Ordered TMDb searches for a cinema title, stopping at the first that yields an acceptable hit:
+ * 1. the exact sanitized title, forced to the release year when the title has one ("Your Name 2016");
+ * 2. the full title without the year filter (the number may be part of the name: "Fantasia 2000");
  * 3. the part before a subtitle separator ("Avengers: Doomsday" -> "Avengers");
  * 4. the first main keyword. Attempts 3 and 4 are `loose`, so a vague hit is never linked blindly.
  */
 export function searchAttempts(raw: string): SearchAttempt[] {
-  const year = raw.match(YEAR_IN_PARENS)?.[1];
+  const year = titleYear(raw);
   const out: SearchAttempt[] = [];
   const add = (query: string, y: string | undefined, loose: boolean) => {
     const dup = out.some((a) => a.query.toLowerCase() === query.toLowerCase() && a.year === y);
     if (query.length >= 2 && !dup) out.push({ query, year: y, loose });
   };
   const full = searchTitle(raw);
+  const base = splitYear(full).base;
+  if (year) add(YEAR_IN_PARENS.test(raw) ? full : base, year, false);
   add(full, undefined, false);
-  if (year) add(full, year, false);
-  add(searchTitle(cleanTitle(raw).split(/\s*(?::|\s[-–]\s)\s*/)[0] ?? ""), year, true);
-  const keyword = full.split(" ").find((w) => w.length >= 4 && !SMALL_WORDS.has(w.toLowerCase()));
+  add(splitYear(searchTitle(cleanTitle(raw).split(/\s*(?::|\s[-–]\s)\s*/)[0] ?? "")).base, year, true);
+  const keyword = base.split(" ").find((w) => w.length >= 4 && !SMALL_WORDS.has(w.toLowerCase()));
   if (keyword) add(keyword, year, true);
   return out;
+}
+
+// ---- Choosing the right TMDb result -------------------------------------------------------------------------------
+
+/** Words of a title without accents, case or punctuation (same normalization used for grouping). */
+const words = (t: string) => tokens(t);
+const digits = (w: string[]) => w.filter((x) => /^\d+$/.test(x)).join(",");
+
+function edit(a: string, b: string) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length]!;
+}
+
+/** Fuzzy matching is only trusted for titles at least this long (letters/digits); shorter ones must match exactly. */
+const MIN_FUZZY = 8;
+const FUZZY_RATIO = 0.88;
+
+/** How well a TMDb name matches what the cinema asked for: 3 exact, 2 typographically very close, 1 same words plus a subtitle, 0 no. */
+function score(query: string, name: unknown): number {
+  if (typeof name !== "string" || !name.trim()) return 0;
+  const [q, n] = [words(query), words(name)];
+  const [kq, kn] = [q.join(""), n.join("")];
+  if (!kq || !kn) return 0;
+  if (kq === kn) return 3;
+  if (digits(q) !== digits(n)) return 0; // another number = another movie (Cars vs Cars 2)
+  if (Math.min(kq.length, kn.length) >= MIN_FUZZY && 1 - edit(kq, kn) / Math.max(kq.length, kn.length) >= FUZZY_RATIO) return 2;
+  // "Plumas" -> "Plumas: Operación rescate" style tails, never for short titles and never a sequel marker.
+  if (q.length >= 3 && n.length > q.length && q.every((w, i) => w === n[i]) && !n.slice(q.length).some((w) => SEQUEL.test(w))) return 1;
+  return 0;
+}
+
+const yearOf = (r: any) => Number(String(r?.release_date ?? "").slice(0, 4)) || 0;
+
+/**
+ * Picks the TMDb search result for `query` instead of trusting the first one: the result whose `title` or
+ * `original_title` is exactly the query (or typographically almost the same) wins; a title that merely CONTAINS
+ * the query ("Call Me by Your Name" for "Your Name") is never accepted. Ties go to the release year the
+ * cinema gave (±1), then to TMDb's own order. `undefined` means "none of these is that movie".
+ */
+export function pickHit(query: string, results: unknown, year?: string): any {
+  const list: any[] = Array.isArray(results) ? results : [];
+  const want = Number(year) || 0;
+  let best: any;
+  let bestScore = 0;
+  for (const r of list) {
+    const base = Math.max(score(query, r?.title), score(query, r?.original_title));
+    if (!base) continue;
+    const gap = want && yearOf(r) ? Math.abs(yearOf(r) - want) : 0;
+    if (want && gap > 1) continue; // a different year is a different movie (remake, namesake)
+    const s = base * 10 + (want && yearOf(r) ? 5 - Math.min(gap, 5) : 0);
+    if (s > bestScore) { best = r; bestScore = s; }
+  }
+  return best;
+}
+
+/** For loose (keyword) searches: the result must start with the searched words or be the cinema's movie. */
+export function pickLoose(query: string, raw: string, results: unknown): any {
+  const q = words(query);
+  return (Array.isArray(results) ? results : []).find((r: any) =>
+    [r?.title, r?.original_title].some((n) => typeof n === "string" && (words(n).slice(0, q.length).join(" ") === q.join(" ") || sameMovie(raw, n))));
 }

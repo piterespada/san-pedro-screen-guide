@@ -26,7 +26,7 @@ const credits = {
   crew: [{ job: "Director", name: "William Friedkin" }],
 };
 const happy: Route = (p) =>
-  p.startsWith("/search/movie") ? { results: [{ id: 9 }] } : p.startsWith("/movie/9/credits") ? credits : p.startsWith("/movie/9") ? details() : null;
+  p.startsWith("/search/movie") ? { results: [{ id: 9, title: "El exorcista", original_title: "The Exorcist" }] } : p.startsWith("/movie/9/credits") ? credits : p.startsWith("/movie/9") ? details() : null;
 
 describe("TMDb search", () => {
   it("asks with the sanitized title, never with the cinema's tags", async () => {
@@ -48,34 +48,34 @@ describe("TMDb search", () => {
 });
 
 describe("search fallbacks", () => {
-  const route = (hits: Record<string, number>, runtime = 143): Route => (p, lang) => {
-    if (p.startsWith("/search/movie")) return { results: hits[p] ? [{ id: hits[p] }] : [] };
+  const route = (hits: Record<string, number>, runtime = 143, title = "Cars"): Route => (p, lang) => {
+    if (p.startsWith("/search/movie")) return { results: hits[p] ? [{ id: hits[p], title, original_title: title }] : [] };
     if (p.startsWith("/movie/9/credits")) return credits;
     if (p.startsWith("/movie/9")) return lang === "es-MX" ? details({ runtime, title: "Otra", original_title: "Other" }) : null;
     return null;
   };
 
-  it("retries with the original year when the exact search finds nothing", async () => {
-    const { request, calls } = fake(route({ "/search/movie?query=Cars&year=2006": 9 }));
+  it("forces the release year the cinema gives in the very first request", async () => {
+    const { request, calls } = fake(route({ "/search/movie?query=Cars&primary_release_year=2006": 9 }));
     const out = await lookup(movie({ title: "Cars (2006)" }), "key", request);
-    expect(calls.slice(0, 2).map((c) => c.path)).toEqual(["/search/movie?query=Cars", "/search/movie?query=Cars&year=2006"]);
+    expect(calls[0]!.path).toBe("/search/movie?query=Cars&primary_release_year=2006");
     expect(out.tmdbId).toBe(9);
   });
   it("falls back to the main keyword and links it when the runtime agrees", async () => {
-    const { request, calls } = fake(route({ "/search/movie?query=Avengers": 9 }, 143));
+    const { request, calls } = fake(route({ "/search/movie?query=Avengers": 9 }, 143, "Avengers: Doomsday"));
     const out = await lookup(movie({ title: "Avengers: Doomsday", runtime: 150 }), "key", request);
     expect(calls.slice(0, 2).map((c) => c.path)).toEqual(["/search/movie?query=Avengers%20Doomsday", "/search/movie?query=Avengers"]);
     expect(out.tmdbId).toBe(9);
   });
   it("does not link a keyword guess whose runtime differs (avoids a wrong movie)", async () => {
     const m = movie({ title: "Avengers: Doomsday", runtime: 150 });
-    const out = await lookup(m, "key", fake(route({ "/search/movie?query=Avengers": 9 }, 90)).request);
+    const out = await lookup(m, "key", fake(route({ "/search/movie?query=Avengers": 9 }, 90, "Avengers: Doomsday")).request);
     expect(out).toBe(m);
     expect(out.tmdbId).toBeUndefined();
   });
   it("does not link a keyword guess when the runtime is unknown", async () => {
     const m = movie({ title: "Avengers: Doomsday", runtime: 0 });
-    expect(await lookup(m, "key", fake(route({ "/search/movie?query=Avengers": 9 })).request)).toBe(m);
+    expect(await lookup(m, "key", fake(route({ "/search/movie?query=Avengers": 9 }, 143, "Avengers: Doomsday")).request)).toBe(m);
   });
   it("leaves the movie untouched when nothing is found or TMDb fails", async () => {
     const m = movie();
@@ -118,5 +118,35 @@ describe("metadata priority", () => {
     const out = await lookup(movie(), "key", fake(noCast).request);
     expect(out.cast).toEqual(["Actor del cine"]);
     expect(out.topCast).toBeUndefined();
+  });
+});
+
+describe("choosing the right result", () => {
+  const callMe = { id: 1, title: "Llámame por tu nombre", original_title: "Call Me by Your Name", release_date: "2017-10-27" };
+  const yourName = { id: 9, title: "Your Name", original_title: "君の名は。", release_date: "2016-08-26" };
+  const route = (results: unknown[]): Route => (p) =>
+    p.startsWith("/search/movie") ? { results } : p.startsWith("/movie/9/credits") ? credits : p.startsWith("/movie/9") ? details({ id: 9, title: "Your Name", original_title: "君の名は。" }) : null;
+
+  it("skips a first result that only contains the title and takes the exact one", async () => {
+    const out = await lookup(movie({ title: "Your Name", runtime: 106 }), "key", fake(route([callMe, yourName])).request);
+    expect(out.tmdbId).toBe(9);
+  });
+  it("links nothing when only look-alikes come back", async () => {
+    const m = movie({ title: "Your Name" });
+    expect(await lookup(m, "key", fake(route([callMe])).request)).toBe(m);
+  });
+  it("matches by original title too", async () => {
+    const r = [{ id: 9, title: "Otro", original_title: "Up", release_date: "2009-05-29" }, { id: 2, title: "Up", original_title: "Up Close", release_date: "2000-01-01" }];
+    expect((await lookup(movie({ title: "UP" }), "key", fake(route(r)).request)).tmdbId).toBe(9);
+  });
+  it("uses a year written without parentheses as primary_release_year", async () => {
+    const { request, calls } = fake(route([callMe, yourName]));
+    const out = await lookup(movie({ title: "Your Name 2016", runtime: 106 }), "key", request);
+    expect(calls[0]!.path).toBe("/search/movie?query=Your%20Name&primary_release_year=2016");
+    expect(out.tmdbId).toBe(9);
+  });
+  it("rejects a namesake from another year", async () => {
+    const m = movie({ title: "Your Name 2016" });
+    expect(await lookup(m, "key", fake(route([{ ...yourName, release_date: "1990-01-01" }])).request)).toBe(m);
   });
 });
