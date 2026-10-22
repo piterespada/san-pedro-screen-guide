@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanTitle, isRerun, pickTitle, sameMovie, searchAttempts, searchTitle } from "@/lib/titles";
+import { cleanTitle, isRerun, pickHit, pickTitle, sameMovie, searchAttempts, searchTitle, titleYear } from "@/lib/titles";
 
 describe("sameMovie", () => {
   it("groups a title with its subtitled version", () => {
@@ -121,10 +121,16 @@ describe("searchAttempts", () => {
   it("starts with the exact sanitized title", () => {
     expect(searchAttempts("TS EL EXORCISTA")[0]).toEqual({ query: "El Exorcista", loose: false });
   });
-  it("adds the original year when the title has one", () => {
-    const a = searchAttempts("Cars (2006)");
-    expect(a[0]).toEqual({ query: "Cars", loose: false });
-    expect(a[1]).toEqual({ query: "Cars", year: "2006", loose: false });
+  it("puts the year first when the title has one, then retries without it", () => {
+    expect(searchAttempts("Cars (2006)").slice(0, 2)).toEqual([{ query: "Cars", year: "2006", loose: false }, { query: "Cars", loose: false }]);
+    expect(searchAttempts("Your Name 2016").slice(0, 2)).toEqual([{ query: "Your Name", year: "2016", loose: false }, { query: "Your Name 2016", loose: false }]);
+  });
+  it("does not mistake a title's number for a year", () => {
+    expect(titleYear("Blade Runner 2049")).toBeUndefined();
+    expect(titleYear("1917")).toBeUndefined();
+    expect(titleYear("Apollo 11")).toBeUndefined();
+    expect(titleYear("Your Name 2016 3D")).toBe("2016");
+    expect(searchAttempts("Blade Runner 2049")[0]).toEqual({ query: "Blade Runner 2049", loose: false });
   });
   it("falls back to the subtitle head and the main keyword, both marked loose", () => {
     const a = searchAttempts("Avengers: Doomsday");
@@ -138,5 +144,38 @@ describe("searchAttempts", () => {
     expect(searchAttempts("Shrek").map((x) => x.query)).toEqual(["Shrek"]);
     expect(searchAttempts("Up").map((x) => x.query)).toEqual(["Up"]);
     expect(searchAttempts("3D 2D")).toEqual([]);
+  });
+});
+
+describe("pickHit", () => {
+  const r = (title: string, original_title = title, release_date = "") => ({ title, original_title, release_date });
+  it("takes the exact title, not the first result", () => {
+    const hits = [r("Call Me by Your Name"), r("Your Name")];
+    expect(pickHit("Your Name", hits)).toBe(hits[1]);
+  });
+  it("never accepts a title that merely contains a short one", () => {
+    expect(pickHit("Your Name", [r("Call Me by Your Name")])).toBeUndefined();
+    expect(pickHit("Her", [r("Her Smell"), r("Mother")])).toBeUndefined();
+    expect(pickHit("Up", [r("Up in the Air"), r("Setup")])).toBeUndefined();
+    expect(pickHit("IT", [r("It Follows"), r("Hit")])).toBeUndefined();
+  });
+  it("ignores case, accents and punctuation, and looks at the original title", () => {
+    expect(pickHit("El Exorcista", [r("EL EXORCISTA")])).toBeDefined();
+    expect(pickHit("Spiderman", [r("Spider-Man")])).toBeDefined();
+    expect(pickHit("Up", [r("Otro", "UP!")])).toBeDefined();
+  });
+  it("keeps sequels apart", () => {
+    expect(pickHit("Cars", [r("Cars 2")])).toBeUndefined();
+    expect(pickHit("Cars 2", [r("Cars"), r("Cars 2")])).toEqual(r("Cars 2"));
+  });
+  it("accepts a very close long title and a subtitle tail on a long one", () => {
+    expect(pickHit("Plumas Operación de rescate", [r("Plumas: Operación rescate")])).toBeDefined();
+    expect(pickHit("Kung Fu Panda", [r("Kung Fu Panda: Los Secretos")])).toBeDefined();
+    expect(pickHit("Dune", [r("Dune: Parte Dos")])).toBeUndefined();
+  });
+  it("prefers the requested year and rejects a different one", () => {
+    const a = r("Your Name", "Your Name", "1990-01-01"), b = r("Your Name", "Your Name", "2016-08-26");
+    expect(pickHit("Your Name", [a, b], "2016")).toBe(b);
+    expect(pickHit("Your Name", [a], "2016")).toBeUndefined();
   });
 });

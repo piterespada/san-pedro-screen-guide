@@ -1,6 +1,6 @@
 import type { Movie } from "./movies";
 import { topCast } from "./cast";
-import { sameMovie, searchAttempts } from "./titles";
+import { pickHit, pickLoose, sameMovie, searchAttempts, titleYear } from "./titles";
 
 const API = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p/w780";
@@ -32,12 +32,15 @@ const directorOf = (credits: any): string => {
 
 export async function lookup(m: Movie, key: string, request: TmdbRequest = req): Promise<Movie> {
   try {
-    // Search with the sanitized title; on zero results try the next attempt (year, subtitle, main keyword).
+    // Search with the sanitized title (forced to the release year when the cinema gives one) and pick the
+    // result that really is that movie, not just the first one; with no acceptable result try the next attempt.
     let hit: any;
     let loose = false;
+    const want = titleYear(m.title);
     for (const a of searchAttempts(m.title)) {
-      const s = await request(`/search/movie?query=${encodeURIComponent(a.query)}${a.year ? `&year=${a.year}` : ""}`, key, LANG);
-      if (s?.results?.length) { hit = s.results[0]; loose = a.loose; break; }
+      const s = await request(`/search/movie?query=${encodeURIComponent(a.query)}${a.year ? `&primary_release_year=${a.year}` : ""}`, key, LANG);
+      const found = a.loose ? pickLoose(a.query, m.title, s?.results) : pickHit(a.query, s?.results, want);
+      if (found) { hit = found; loose = a.loose; break; }
     }
     if (!hit) return m;
     const [d, credits] = await Promise.all([
